@@ -2,7 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.0.0] - 2026-05-16
+## [2.0.1] - 2026-05-19
+
+### Bug Fixes
+
+- _(voice)_ Reduce microphone tearing during transmit (#96) in [#96](https://github.com/chojs23/concord/pull/96) by @chojs23
+
+### Features
+
+- Centralize app key handling and shortcut labels (#89) in [#89](https://github.com/chojs23/concord/pull/89) by @chojs23
+
+### Miscellaneous Tasks
+
+- Add system Opus to Nix build inputs by @chojs23
+- Enable voice-playback for nix build by @chojs23
+- Add Twilight attribution for Discord IDs (#95) by @chojs23
+
+## [2.0.0] - 2026-05-17
 
 ### Bug Fixes
 
