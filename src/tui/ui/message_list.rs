@@ -111,6 +111,7 @@ pub(super) fn render_messages(
     );
     let selected_card_width =
         selected_message_card_width(message_areas.list.width as usize, message_scrollbar_visible);
+    let loaded_custom_emoji_urls = loaded_custom_emoji_urls(emoji_images);
     let lines = message_viewport_lines(
         &messages,
         selected,
@@ -122,7 +123,7 @@ pub(super) fn render_messages(
             preview_width,
             max_preview_height,
         },
-        emoji_images,
+        &loaded_custom_emoji_urls,
     );
 
     frame.render_widget(Paragraph::new(lines), message_areas.list);
@@ -163,6 +164,7 @@ pub(super) fn render_messages(
         content_width,
         selected,
         emoji_images,
+        &loaded_custom_emoji_urls,
     );
     for image_preview in image_previews.into_iter() {
         let preview_rows_before_cell = inline_preview_rows_before_message(
@@ -420,6 +422,7 @@ fn render_inline_reaction_emojis(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_inline_message_body_emojis(
     frame: &mut Frame,
     list: Rect,
@@ -428,6 +431,7 @@ fn render_inline_message_body_emojis(
     content_width: usize,
     selected: Option<usize>,
     emoji_images: &[EmojiImage<'_>],
+    loaded_custom_emoji_urls: &[String],
 ) {
     if emoji_images.is_empty() || list.height == 0 || list.width <= MESSAGE_AVATAR_OFFSET {
         return;
@@ -470,12 +474,11 @@ fn render_inline_message_body_emojis(
         let message_top = rendered_rows - line_offset;
         let body_top = message_top + metrics.body_top_offset() as isize;
 
-        let loaded_custom_emoji_urls = loaded_custom_emoji_urls(emoji_images);
         let body_lines = format_message_content_lines_with_loaded_custom_emoji_urls(
             message,
             state,
             content_width.max(8),
-            &loaded_custom_emoji_urls,
+            loaded_custom_emoji_urls,
         );
         for (line_idx, line) in body_lines.iter().enumerate() {
             if line.image_slots.is_empty() {
@@ -629,7 +632,7 @@ pub(super) fn message_viewport_lines(
     selected: Option<usize>,
     state: &DashboardState,
     layout: MessageViewportLayout,
-    emoji_images: &[EmojiImage<'_>],
+    loaded_custom_emoji_urls: &[String],
 ) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
     let state_messages = state.messages();
@@ -678,12 +681,11 @@ pub(super) fn message_viewport_lines(
             lines.push(line);
         }
 
-        let loaded_custom_emoji_urls = loaded_custom_emoji_urls(emoji_images);
         let (content, reactions) = format_message_content_sections_with_loaded_custom_emoji_urls(
             message,
             state,
             item_content_width.max(8),
-            &loaded_custom_emoji_urls,
+            loaded_custom_emoji_urls,
         );
 
         let sent_time = format_message_sent_time(message.id);

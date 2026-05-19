@@ -1,6 +1,12 @@
+use std::{
+    collections::hash_map::DefaultHasher,
+    fmt::{self, Write as _},
+    hash::Hasher,
+};
+
 use crate::{
     config,
-    discord::{MessageState, PresenceStatus},
+    discord::{ChannelUnreadState, PresenceStatus},
     tui::state,
 };
 
@@ -21,7 +27,7 @@ pub(super) struct VisibleDashboardSignature {
     channel_switcher_query_cursor: Option<usize>,
     channel_switcher_selected: Option<usize>,
     channel_switcher_result_count: usize,
-    channel_switcher_items: Vec<String>,
+    channel_switcher_items: Vec<ChannelSwitcherItemSignature>,
     guild_pane_visible: bool,
     channel_pane_visible: bool,
     member_pane_visible: bool,
@@ -45,10 +51,10 @@ pub(super) struct VisibleDashboardSignature {
     composer_mention_selected: usize,
     composer_mention_candidates: Vec<MemberEntrySignature>,
     popups: VisiblePopupSignature,
-    visible_guilds: Vec<String>,
-    pub(super) visible_channels: Vec<String>,
-    pub(super) visible_messages: Vec<MessageState>,
-    visible_forum_posts: Vec<state::ChannelThreadItem>,
+    visible_guilds: Vec<GuildEntrySignature>,
+    pub(super) visible_channels: Vec<ChannelEntrySignature>,
+    pub(super) visible_messages: Vec<DebugSignature>,
+    visible_forum_posts: Vec<DebugSignature>,
     visible_members: Vec<MemberEntrySignature>,
 }
 
@@ -72,7 +78,7 @@ struct VisiblePopupSignature {
     poll_vote_picker_open: bool,
     user_profile_open: bool,
     debug_log_open: bool,
-    user_profile_data: String,
+    user_profile_data: DebugSignature,
     user_profile_error: Option<String>,
     user_profile_status: PresenceStatus,
 }
@@ -86,9 +92,42 @@ struct MemberEntrySignature {
     status: PresenceStatus,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct DebugSignature(u64);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ChannelSwitcherItemSignature {
+    channel_id: Id<ChannelMarker>,
+    group_label: String,
+    parent_label: Option<String>,
+    channel_label: String,
+    depth: usize,
+    unread: ChannelUnreadState,
+    unread_message_count: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct GuildEntrySignature {
+    row: DebugSignature,
+    unread_count: Option<usize>,
+    unread_state: Option<ChannelUnreadState>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct ChannelEntrySignature {
+    row: DebugSignature,
+    unread: Option<ChannelUnreadState>,
+    unread_message_count: Option<usize>,
+}
+
 pub(super) fn visible_dashboard_signature(state: &DashboardState) -> VisibleDashboardSignature {
     let member_start = state.member_scroll();
     let member_end = member_start.saturating_add(state.member_content_height());
+    let channel_switcher_items = if state.is_channel_switcher_open() {
+        state.channel_switcher_items()
+    } else {
+        Vec::new()
+    };
     VisibleDashboardSignature {
         focus: state.focus(),
         leader_active: state.is_leader_active(),
@@ -97,8 +136,8 @@ pub(super) fn visible_dashboard_signature(state: &DashboardState) -> VisibleDash
         channel_switcher_query: state.channel_switcher_query().map(str::to_owned),
         channel_switcher_query_cursor: state.channel_switcher_query_cursor_byte_index(),
         channel_switcher_selected: state.selected_channel_switcher_index(),
-        channel_switcher_items: channel_switcher_item_signature(state),
-        channel_switcher_result_count: state.channel_switcher_items().len(),
+        channel_switcher_result_count: channel_switcher_items.len(),
+        channel_switcher_items: channel_switcher_item_signature(&channel_switcher_items),
         guild_pane_visible: state.is_pane_visible(state::FocusPane::Guilds),
         channel_pane_visible: state.is_pane_visible(state::FocusPane::Channels),
         member_pane_visible: state.is_pane_visible(state::FocusPane::Members),
@@ -150,7 +189,7 @@ pub(super) fn visible_dashboard_signature(state: &DashboardState) -> VisibleDash
             poll_vote_picker_open: state.is_poll_vote_picker_open(),
             user_profile_open: state.is_user_profile_popup_open(),
             debug_log_open: state.is_debug_log_popup_open(),
-            user_profile_data: format!("{:?}", state.user_profile_popup_data()),
+            user_profile_data: debug_signature(&state.user_profile_popup_data()),
             user_profile_error: state.user_profile_popup_load_error().map(str::to_owned),
             user_profile_status: state.user_profile_popup_status(),
         },
@@ -158,33 +197,50 @@ pub(super) fn visible_dashboard_signature(state: &DashboardState) -> VisibleDash
             .visible_guild_pane_entries()
             .into_iter()
             .map(|entry| match entry {
-                state::GuildPaneEntry::DirectMessages => {
-                    format!("{entry:?} unread={}", state.direct_message_unread_count())
-                }
-                state::GuildPaneEntry::Guild { state: guild, .. } => {
-                    format!(
-                        "{entry:?} unread={:?}",
-                        state.sidebar_guild_unread(guild.id)
-                    )
-                }
-                state::GuildPaneEntry::FolderHeader { .. } => format!("{entry:?}"),
+                state::GuildPaneEntry::DirectMessages => GuildEntrySignature {
+                    row: debug_signature(&entry),
+                    unread_count: Some(state.direct_message_unread_count()),
+                    unread_state: None,
+                },
+                state::GuildPaneEntry::Guild { state: guild, .. } => GuildEntrySignature {
+                    row: debug_signature(&entry),
+                    unread_count: None,
+                    unread_state: Some(state.sidebar_guild_unread(guild.id)),
+                },
+                state::GuildPaneEntry::FolderHeader { .. } => GuildEntrySignature {
+                    row: debug_signature(&entry),
+                    unread_count: None,
+                    unread_state: None,
+                },
             })
             .collect(),
         visible_channels: state
             .visible_channel_pane_entries()
             .into_iter()
             .map(|entry| match entry {
-                state::ChannelPaneEntry::Channel { state: channel, .. } => format!(
-                    "{entry:?} unread={:?} unread_messages={}",
-                    state.channel_unread(channel.id),
-                    state.channel_unread_message_count(channel.id)
-                ),
-                state::ChannelPaneEntry::VoiceParticipant { .. } => format!("{entry:?}"),
-                state::ChannelPaneEntry::CategoryHeader { .. } => format!("{entry:?}"),
+                state::ChannelPaneEntry::Channel { state: channel, .. } => ChannelEntrySignature {
+                    row: debug_signature(&entry),
+                    unread: Some(state.channel_unread(channel.id)),
+                    unread_message_count: Some(state.channel_unread_message_count(channel.id)),
+                },
+                state::ChannelPaneEntry::VoiceParticipant { .. }
+                | state::ChannelPaneEntry::CategoryHeader { .. } => ChannelEntrySignature {
+                    row: debug_signature(&entry),
+                    unread: None,
+                    unread_message_count: None,
+                },
             })
             .collect(),
-        visible_messages: state.visible_messages().into_iter().cloned().collect(),
-        visible_forum_posts: state.visible_forum_post_items(),
+        visible_messages: state
+            .visible_messages()
+            .into_iter()
+            .map(debug_signature)
+            .collect(),
+        visible_forum_posts: state
+            .visible_forum_post_items()
+            .into_iter()
+            .map(|post| debug_signature(&post))
+            .collect(),
         visible_members: state
             .flattened_members()
             .into_iter()
@@ -287,26 +343,40 @@ fn only_new_message_notice_changed(
         && before.new_messages_count != after.new_messages_count
 }
 
-fn channel_switcher_item_signature(state: &DashboardState) -> Vec<String> {
-    if !state.is_channel_switcher_open() {
-        return Vec::new();
-    }
-    state
-        .channel_switcher_items()
-        .into_iter()
-        .map(|item| {
-            format!(
-                "{}:{}:{:?}:{}:{}:{:?}:{}",
-                item.channel_id.get(),
-                item.group_label,
-                item.parent_label,
-                item.channel_label,
-                item.depth,
-                item.unread,
-                item.unread_message_count,
-            )
+fn channel_switcher_item_signature(
+    items: &[state::ChannelSwitcherItem],
+) -> Vec<ChannelSwitcherItemSignature> {
+    items
+        .iter()
+        .map(|item| ChannelSwitcherItemSignature {
+            channel_id: item.channel_id,
+            group_label: item.group_label.clone(),
+            parent_label: item.parent_label.clone(),
+            channel_label: item.channel_label.clone(),
+            depth: item.depth,
+            unread: item.unread,
+            unread_message_count: item.unread_message_count,
         })
         .collect()
+}
+
+struct DebugSignatureWriter {
+    hasher: DefaultHasher,
+}
+
+impl fmt::Write for DebugSignatureWriter {
+    fn write_str(&mut self, value: &str) -> fmt::Result {
+        self.hasher.write(value.as_bytes());
+        Ok(())
+    }
+}
+
+fn debug_signature<T: fmt::Debug>(value: &T) -> DebugSignature {
+    let mut writer = DebugSignatureWriter {
+        hasher: DefaultHasher::new(),
+    };
+    write!(&mut writer, "{value:?}").expect("writing into signature hasher cannot fail");
+    DebugSignature(writer.hasher.finish())
 }
 
 pub(super) fn should_suppress_image_redraw_for_signature_change(

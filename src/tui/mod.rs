@@ -63,8 +63,8 @@ mod tests {
         marker::{AttachmentMarker, ChannelMarker, GuildMarker, MessageMarker},
     };
     use crate::discord::{
-        AppEvent, AttachmentInfo, ChannelInfo, DownloadAttachmentSource, MemberInfo, MessageKind,
-        ReadStateInfo, SequencedAppEvent,
+        AppEvent, AttachmentInfo, AttachmentUpdate, ChannelInfo, DownloadAttachmentSource,
+        MemberInfo, MessageKind, ReadStateInfo, SequencedAppEvent,
     };
 
     use super::{
@@ -335,6 +335,33 @@ mod tests {
         let before = visible_dashboard_signature(&state);
 
         push_message(&mut state, 3);
+        let after = visible_dashboard_signature(&state);
+
+        assert_ne!(before.visible_messages, after.visible_messages);
+        assert!(should_redraw_after_visible_signature_change(
+            &before, &after, true, false,
+        ));
+    }
+
+    #[test]
+    fn visible_message_content_update_changes_signature() {
+        let mut state = state_with_messages(1);
+        state.focus_pane(FocusPane::Messages);
+        state.set_message_view_height(8);
+        let before = visible_dashboard_signature(&state);
+
+        state.push_event(AppEvent::MessageUpdate {
+            guild_id: Some(Id::new(1)),
+            channel_id: Id::new(2),
+            message_id: Id::new(1),
+            poll: None,
+            content: Some("edited msg 1".to_owned()),
+            sticker_names: None,
+            mentions: None,
+            attachments: AttachmentUpdate::Unchanged,
+            embeds: None,
+            edited_timestamp: Some("2026-05-19T00:00:00.000Z".to_owned()),
+        });
         let after = visible_dashboard_signature(&state);
 
         assert_ne!(before.visible_messages, after.visible_messages);
