@@ -9,7 +9,7 @@ use crate::discord::{
     },
 };
 
-use super::shared::{parse_id, parse_status};
+use super::shared::{display_name_from_parts, parse_id, parse_status};
 
 pub(super) fn parse_presence_update(data: &Value) -> Vec<AppEvent> {
     let Some((user_id, status, activities)) = parse_presence_entry(data) else {
@@ -46,10 +46,24 @@ pub(super) fn parse_typing_start(data: &Value) -> Option<AppEvent> {
                 .and_then(|user| user.get("id"))
                 .and_then(parse_id::<UserMarker>)
         })?;
+    let display_name = data.get("member").and_then(typing_member_display_name);
     Some(AppEvent::TypingStart {
         channel_id,
         user_id,
+        display_name,
     })
+}
+
+fn typing_member_display_name(member: &Value) -> Option<String> {
+    let user = member.get("user");
+    let nick = member.get("nick").and_then(Value::as_str);
+    let global_name = user
+        .and_then(|user| user.get("global_name"))
+        .and_then(Value::as_str);
+    let username = user
+        .and_then(|user| user.get("username"))
+        .and_then(Value::as_str);
+    display_name_from_parts(nick, global_name, username).map(str::to_owned)
 }
 
 pub(super) fn parse_presence_entry(

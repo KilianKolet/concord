@@ -1774,6 +1774,7 @@ fn message_row_content_metrics_cache_survives_noisy_discord_events() {
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(99),
+        display_name: None,
     });
     state.push_event(AppEvent::PresenceUpdate {
         guild_id: Id::new(1),
@@ -4951,11 +4952,12 @@ fn typing_footer_resolves_one_user_to_alias() {
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(20),
+        display_name: Some("Live Nick".to_owned()),
     });
 
     assert_eq!(
         state.typing_footer_for_selected_channel(),
-        Some("Sally is typing\u{2026}".to_owned())
+        Some("Live Nick is typing\u{2026}".to_owned())
     );
 }
 
@@ -4966,6 +4968,7 @@ fn typing_footer_excludes_current_user() {
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(10),
+        display_name: Some("Local User".to_owned()),
     });
 
     assert_eq!(state.typing_footer_for_selected_channel(), None);
@@ -4977,10 +4980,12 @@ fn typing_footer_pluralizes_at_two_three_and_more_typers() {
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(20),
+        display_name: None,
     });
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(21),
+        display_name: None,
     });
     let footer = state
         .typing_footer_for_selected_channel()
@@ -4991,6 +4996,7 @@ fn typing_footer_pluralizes_at_two_three_and_more_typers() {
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(22),
+        display_name: None,
     });
     let footer = state
         .typing_footer_for_selected_channel()
@@ -5000,6 +5006,7 @@ fn typing_footer_pluralizes_at_two_three_and_more_typers() {
     state.push_event(AppEvent::TypingStart {
         channel_id: Id::new(2),
         user_id: Id::new(23),
+        display_name: None,
     });
     let footer = state
         .typing_footer_for_selected_channel()

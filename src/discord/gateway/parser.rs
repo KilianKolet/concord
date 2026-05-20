@@ -2596,8 +2596,10 @@ mod tests {
         );
         assert!(matches!(
             events.as_slice(),
-            [AppEvent::TypingStart { channel_id, user_id }]
-                if *channel_id == Id::new(12345) && *user_id == Id::new(99)
+            [AppEvent::TypingStart { channel_id, user_id, display_name }]
+                if *channel_id == Id::new(12345)
+                    && *user_id == Id::new(99)
+                    && display_name.is_none()
         ));
     }
 
@@ -2612,7 +2614,12 @@ mod tests {
                     "channel_id": "55",
                     "guild_id": "77",
                     "member": {
-                        "user": { "id": "42" }
+                        "nick": "Live Nick",
+                        "user": {
+                            "id": "42",
+                            "username": "typing-user",
+                            "global_name": "Typing Global"
+                        }
                     },
                     "timestamp": 1_700_000_000
                 }
@@ -2621,8 +2628,10 @@ mod tests {
         );
         assert!(matches!(
             events.as_slice(),
-            [AppEvent::TypingStart { channel_id, user_id }]
-                if *channel_id == Id::new(55) && *user_id == Id::new(42)
+            [AppEvent::TypingStart { channel_id, user_id, display_name }]
+                if *channel_id == Id::new(55)
+                    && *user_id == Id::new(42)
+                    && display_name.as_deref() == Some("Live Nick")
         ));
     }
 

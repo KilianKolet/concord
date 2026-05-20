@@ -35,6 +35,6 @@ pub use rest::ForumPostPage;
 pub use state::{
     ChannelRecipientState, ChannelState, ChannelUnreadState, ChannelVisibilityStats,
     CurrentVoiceConnectionState, DiscordSnapshot, DiscordState, GuildMemberState, GuildState,
-    MessageCapabilities, MessageState, RoleState, SnapshotAreas, SnapshotRevision,
+    MessageCapabilities, MessageState, RoleState, SnapshotAreas, SnapshotRevision, TypingUserState,
     VoiceParticipantState,
 };

@@ -10,6 +10,12 @@ use crate::discord::{ActivityInfo, MemberInfo, PresenceStatus, RoleInfo};
 use super::{DiscordState, MAX_RECENT_MEMBER_GUILDS, TYPING_INDICATOR_TTL, is_fallback_identity};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TypingUserState {
+    pub user_id: Id<UserMarker>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GuildMemberState {
     pub user_id: Id<UserMarker>,
     pub display_name: String,
@@ -35,20 +41,28 @@ pub struct RoleState {
 }
 
 impl DiscordState {
-    pub fn typing_users(&self, channel_id: Id<ChannelMarker>) -> Vec<Id<UserMarker>> {
+    pub fn typing_users(&self, channel_id: Id<ChannelMarker>) -> Vec<TypingUserState> {
         let now = Instant::now();
         let Some(channel_typers) = self.presence.typing.get(&channel_id) else {
             return Vec::new();
         };
-        let mut fresh: Vec<(Id<UserMarker>, Instant)> = channel_typers
+        let mut fresh: Vec<(Id<UserMarker>, Instant, Option<String>)> = channel_typers
             .iter()
-            .filter(|(_, started)| now.duration_since(**started) <= TYPING_INDICATOR_TTL)
-            .map(|(user_id, started)| (*user_id, *started))
+            .filter(|(_, indicator)| now.duration_since(indicator.started) <= TYPING_INDICATOR_TTL)
+            .map(|(user_id, indicator)| {
+                (*user_id, indicator.started, indicator.display_name.clone())
+            })
             .collect();
         // Newest typer first so the "X is typing…" label tends to surface the
         // person who just hit a key.
-        fresh.sort_by_key(|(_, started)| std::cmp::Reverse(*started));
-        fresh.into_iter().map(|(user_id, _)| user_id).collect()
+        fresh.sort_by_key(|(_, started, _)| std::cmp::Reverse(*started));
+        fresh
+            .into_iter()
+            .map(|(user_id, _, display_name)| TypingUserState {
+                user_id,
+                display_name,
+            })
+            .collect()
     }
 
     pub fn user_presence(&self, user_id: Id<UserMarker>) -> Option<PresenceStatus> {
@@ -128,10 +142,6 @@ impl DiscordState {
             .map(|member| member.display_name.as_str())
     }
 
-    /// Returns true only when the cached member entry has a real Discord
-    /// username — meaning the member data was complete when it was stored.
-    /// A member with `username: None` has a synthesised fallback display name
-    /// and should still be looked up via the profile API.
     pub fn member_has_known_name(
         &self,
         guild_id: Id<GuildMarker>,
@@ -389,9 +399,6 @@ pub(super) fn upsert_member(
 ) {
     let status = previous_status.unwrap_or(PresenceStatus::Unknown);
 
-    // When the incoming payload is a bare-minimum fallback (no username resolved,
-    // display_name fell through to "unknown"), don't clobber a previously cached
-    // complete entry — the complete data came from a profile fetch and is better.
     let is_fallback = is_fallback_identity(member.username.as_deref(), &member.display_name);
     let existing_complete = is_fallback
         .then(|| map.get(&member.user_id))

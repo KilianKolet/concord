@@ -1,10 +1,13 @@
 use std::collections::{BTreeMap, HashSet};
 
-use crate::discord::ids::{
-    Id,
-    marker::{ChannelMarker, GuildMarker, UserMarker},
-};
 use crate::discord::{AppCommand, AppEvent, ChannelState, VoiceParticipantState};
+use crate::discord::{
+    TypingUserState,
+    ids::{
+        Id,
+        marker::{ChannelMarker, GuildMarker},
+    },
+};
 
 use super::{
     ActiveGuildScope, DashboardState, PaneFilterState, PendingReadAck, READ_ACK_DEBOUNCE,
@@ -999,24 +1002,29 @@ impl DashboardState {
 
     /// Builds the "X is typing…" line for the currently selected channel, or
     /// `None` when nobody is typing (or the only typer is us). Resolution
-    /// order for each user: cached guild member alias → DM recipient
-    /// display name → `user-{id}` fallback. Caps at three names and
-    /// collapses to "Several people are typing…" beyond that.
+    /// order for each user: transient typing display name ->cached guild
+    /// member alias ->DM recipient display name ->`user-{id}` fallback. Caps
+    /// at three names and collapses to "Several people are typing…" beyond
+    /// that.
     pub fn typing_footer_for_selected_channel(&self) -> Option<String> {
         let channel_id = self.selected_channel_id()?;
         let channel = self.discord.channel(channel_id)?;
         let guild_id = channel.guild_id;
-        let typers: Vec<Id<UserMarker>> = self
+        let typers: Vec<TypingUserState> = self
             .discord
             .typing_users(channel_id)
             .into_iter()
-            .filter(|user_id| Some(*user_id) != self.current_user_id)
+            .filter(|typer| Some(typer.user_id) != self.current_user_id)
             .collect();
         if typers.is_empty() {
             return None;
         }
 
-        let resolve_name = |user_id: Id<UserMarker>| -> String {
+        let resolve_name = |typer: TypingUserState| -> String {
+            if let Some(name) = typer.display_name {
+                return name;
+            }
+            let user_id = typer.user_id;
             if let Some(name) =
                 guild_id.and_then(|guild_id| self.discord.member_display_name(guild_id, user_id))
             {
@@ -1033,7 +1041,7 @@ impl DashboardState {
         };
 
         let total = typers.len();
-        let names: Vec<String> = typers.iter().take(3).copied().map(resolve_name).collect();
+        let names: Vec<String> = typers.iter().take(3).cloned().map(resolve_name).collect();
         let footer = match total {
             1 => format!("{} is typing…", names[0]),
             2 => format!("{} and {} are typing…", names[0], names[1]),

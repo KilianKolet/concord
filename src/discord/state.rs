@@ -26,7 +26,7 @@ use crate::discord::ids::{
 pub use channels::{ChannelRecipientState, ChannelState, ChannelVisibilityStats};
 pub use guilds::GuildState;
 use members::role_map;
-pub use members::{GuildMemberState, RoleState};
+pub use members::{GuildMemberState, RoleState, TypingUserState};
 use messages::{MessageAuthorRoleIds, MessageUpdateFields};
 pub use messages::{MessageCapabilities, MessageState};
 pub use notifications::ChannelUnreadState;
@@ -139,9 +139,15 @@ struct PresenceCache {
     user_presences: BTreeMap<Id<UserMarker>, PresenceStatus>,
     user_activities: BTreeMap<Id<UserMarker>, Vec<ActivityInfo>>,
     /// Most recent TYPING_START arrival per (channel, user). Discord renews
-    /// the indicator every ~10 seconds. Readers prune stale entries via
-    /// `typing_users` so the map stays small.
-    typing: BTreeMap<Id<ChannelMarker>, BTreeMap<Id<UserMarker>, Instant>>,
+    /// the indicator every ~10 seconds. Readers filter stale entries, and the
+    /// next typing event for a channel prunes its expired entries.
+    typing: BTreeMap<Id<ChannelMarker>, BTreeMap<Id<UserMarker>, TypingIndicator>>,
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct TypingIndicator {
+    pub(super) started: Instant,
+    pub(super) display_name: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -995,14 +1001,23 @@ impl DiscordState {
             AppEvent::TypingStart {
                 channel_id,
                 user_id,
+                display_name,
             } => {
                 // Record (or refresh) the typing entry, then sweep this
                 // channel's stale entries while we already hold the mutable
                 // borrow. Read paths see only fresh entries.
                 let now = Instant::now();
                 let bucket = self.presence.typing.entry(*channel_id).or_default();
-                bucket.insert(*user_id, now);
-                bucket.retain(|_, started| now.duration_since(*started) <= TYPING_INDICATOR_TTL);
+                bucket.insert(
+                    *user_id,
+                    TypingIndicator {
+                        started: now,
+                        display_name: display_name.clone(),
+                    },
+                );
+                bucket.retain(|_, indicator| {
+                    now.duration_since(indicator.started) <= TYPING_INDICATOR_TTL
+                });
                 if bucket.is_empty() {
                     self.presence.typing.remove(channel_id);
                 }

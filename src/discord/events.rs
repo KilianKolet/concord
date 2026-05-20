@@ -743,6 +743,7 @@ pub enum AppEvent {
     TypingStart {
         channel_id: Id<ChannelMarker>,
         user_id: Id<UserMarker>,
+        display_name: Option<String>,
     },
     CurrentUserReactionAdd {
         channel_id: Id<ChannelMarker>,

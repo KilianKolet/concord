@@ -365,9 +365,6 @@ impl DiscordState {
             .and_then(|guild_id| self.guild_details.members.get(&guild_id))
             .and_then(|members| members.get(&author_id))
         {
-            // Only trust the member entry if it has real name data. When
-            // username is None and display_name is "unknown" the entry is a
-            // bare fallback — fall through to the profile cache instead.
             if !is_fallback_identity(member.username.as_deref(), &member.display_name) {
                 return member.display_name.clone();
             }
