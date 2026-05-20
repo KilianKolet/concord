@@ -1083,6 +1083,18 @@ impl DashboardState {
         Some(format!("{guild} - {channel}{suffix}"))
     }
 
+    pub fn current_voice_self_status(&self) -> (bool, bool) {
+        let remote_status = self
+            .discord
+            .current_user_voice_connection()
+            .map(|voice| (voice.self_mute, voice.self_deaf))
+            .unwrap_or((false, false));
+        (
+            self.voice_options.self_mute || remote_status.0,
+            self.voice_options.self_deaf || remote_status.1,
+        )
+    }
+
     pub fn is_joined_voice_channel(&self, channel_id: Id<ChannelMarker>) -> bool {
         self.voice_connection
             .and_then(|voice| voice.channel_id)

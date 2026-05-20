@@ -37,7 +37,7 @@ use crate::tui::message_time::{
     test_message_id_for_unix_millis,
 };
 use crate::{
-    config::DisplayOptions,
+    config::{DisplayOptions, VoiceOptions},
     discord::{
         ActivityEmoji, ActivityInfo, ActivityKind, AppEvent, AttachmentInfo, ChannelInfo,
         ChannelNotificationOverrideInfo, ChannelRecipientState, ChannelState, ChannelUnreadState,
@@ -290,7 +290,30 @@ fn header_shows_connected_account() {
     assert!(header.contains("Concord - v"), "{header}");
     assert!(header.contains("Connected as muri"), "{header}");
     assert!(header.contains("Voice guild - Lobby"), "{header}");
+    assert!(!header.contains("🔇"), "{header}");
+    assert!(!header.contains("🎧"), "{header}");
     assert!(!header.contains("Loading..."), "{header}");
+}
+
+#[test]
+fn header_shows_voice_status_icons_without_voice_connection() {
+    let mut state = DashboardState::new_with_voice_options(VoiceOptions {
+        self_mute: true,
+        self_deaf: true,
+        ..VoiceOptions::default()
+    });
+    state.push_event(AppEvent::Ready {
+        user: "muri".to_owned(),
+        user_id: Some(Id::new(10)),
+    });
+
+    let dump = render_dashboard_dump(100, 10, &mut state);
+    let header = dump.first().expect("dashboard render includes header");
+
+    assert!(header.contains("Connected as muri"), "{header}");
+    assert!(!header.contains("Voice "), "{header}");
+    assert!(header.contains("🔇"), "{header}");
+    assert!(header.contains("🎧"), "{header}");
 }
 
 #[test]
@@ -387,8 +410,8 @@ fn header_labels_other_client_voice_connection() {
             member: None,
             deaf: false,
             mute: false,
-            self_deaf: false,
-            self_mute: false,
+            self_deaf: true,
+            self_mute: true,
             self_stream: false,
         },
     });
@@ -400,6 +423,8 @@ fn header_labels_other_client_voice_connection() {
         header.contains("Voice guild - Lobby (other client)"),
         "{header}"
     );
+    assert!(header.contains("🔇"), "{header}");
+    assert!(header.contains("🎧"), "{header}");
 }
 
 #[test]

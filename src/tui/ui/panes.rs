@@ -1512,6 +1512,13 @@ pub(super) fn render_header(frame: &mut Frame, area: Rect, state: &DashboardStat
             format!("{user} "),
             Style::default().fg(Color::White).bold(),
         ));
+        let (self_mute, self_deaf) = state.current_voice_self_status();
+        if self_mute {
+            spans.push(Span::styled("🔇 ", Style::default().fg(Color::Yellow)));
+        }
+        if self_deaf {
+            spans.push(Span::styled("🎧 ", Style::default().fg(Color::Yellow)));
+        }
     } else {
         spans.push(Span::styled(
             " Loading... ",
