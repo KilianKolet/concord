@@ -149,7 +149,27 @@ fn channel_filter_opens_child_inside_collapsed_category() {
         })
     );
     assert_eq!(state.selected_channel_id(), Some(Id::new(12)));
+    assert_eq!(state.selected_channel(), 1);
     assert_selected_channel_category_collapsed(&state, true);
+}
+
+#[test]
+fn guild_filter_opens_child_inside_collapsed_folder() {
+    let mut state = state_with_folder();
+    state.focus_pane(FocusPane::Guilds);
+    handle_key(&mut state, key(KeyCode::Enter));
+    assert_selected_folder_collapsed(&state, true);
+
+    handle_key(&mut state, char_key('/'));
+    for value in "second".chars() {
+        handle_key(&mut state, char_key(value));
+    }
+    handle_key(&mut state, key(KeyCode::Enter));
+
+    assert_eq!(state.selected_guild_id(), Some(Id::new(2)));
+    assert_eq!(state.selected_guild_cursor_id(), Some(Id::new(2)));
+    assert_eq!(state.selected_guild(), 2);
+    assert_selected_folder_collapsed(&state, true);
 }
 
 #[test]
@@ -605,6 +625,7 @@ fn alt_arrows_adjust_focused_side_pane_width() {
             display: state.display_options(),
             notifications: state.notification_options(),
             voice: state.voice_options(),
+            ui_state: Default::default(),
         })
     );
 
@@ -1900,6 +1921,7 @@ fn options_popup_toggles_selected_setting() {
             display: state.display_options(),
             notifications: state.notification_options(),
             voice: state.voice_options(),
+            ui_state: Default::default(),
         })
     );
 }
@@ -1924,6 +1946,7 @@ fn options_popup_cycles_image_preview_quality() {
             display: state.display_options(),
             notifications: state.notification_options(),
             voice: state.voice_options(),
+            ui_state: Default::default(),
         })
     );
 }
@@ -1981,6 +2004,7 @@ fn options_popup_h_l_adjust_microphone_sensitivity_by_one_or_ten_db() {
             display: state.display_options(),
             notifications: state.notification_options(),
             voice: state.voice_options(),
+            ui_state: Default::default(),
         })
     );
 }
