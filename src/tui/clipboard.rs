@@ -76,34 +76,20 @@ impl ClipboardService {
     pub(super) fn read_paste_data_with_progress(
         on_attachment_processing: impl FnOnce(),
     ) -> Result<ClipboardPasteData, ClipboardError> {
-        let text = Self::read_text_once().ok().filter(|text| !text.is_empty());
-        if text.is_some() {
-            return Ok(ClipboardPasteData {
-                file_attachments: None,
-                text,
-                image_attachment: None,
-            });
-        }
-
-        on_attachment_processing();
         let file_attachments = Self::read_file_attachments().ok();
-        let image_attachment = if file_attachments.is_none() {
-            Self::read_image_attachment().ok()
-        } else {
-            None
-        };
-
-        if file_attachments.is_none() && text.is_none() && image_attachment.is_none() {
-            return Err(ClipboardError::new(
-                "native clipboard has no pasteable content",
-            ));
+        if file_attachments.is_some() {
+            return paste_data_from_parts(file_attachments, None, None);
         }
 
-        Ok(ClipboardPasteData {
-            file_attachments,
-            text,
-            image_attachment,
-        })
+        let image_attachment = Self::read_image_attachment().ok();
+        if image_attachment.is_some() {
+            on_attachment_processing();
+            return paste_data_from_parts(None, image_attachment, None);
+        }
+
+        let text = Self::read_text_once().ok().filter(|text| !text.is_empty());
+
+        paste_data_from_parts(None, None, text)
     }
 
     fn read_file_attachments() -> Result<Vec<MessageAttachmentUpload>, ClipboardError> {
@@ -142,6 +128,40 @@ impl ClipboardService {
             .as_mut()
             .expect("native clipboard was initialized above"))
     }
+}
+
+fn paste_data_from_parts(
+    file_attachments: Option<Vec<MessageAttachmentUpload>>,
+    image_attachment: Option<MessageAttachmentUpload>,
+    text: Option<String>,
+) -> Result<ClipboardPasteData, ClipboardError> {
+    if let Some(file_attachments) = file_attachments {
+        return Ok(ClipboardPasteData {
+            file_attachments: Some(file_attachments),
+            text: None,
+            image_attachment: None,
+        });
+    }
+
+    if let Some(image_attachment) = image_attachment {
+        return Ok(ClipboardPasteData {
+            file_attachments: None,
+            text: None,
+            image_attachment: Some(image_attachment),
+        });
+    }
+
+    if let Some(text) = text {
+        return Ok(ClipboardPasteData {
+            file_attachments: None,
+            text: Some(text),
+            image_attachment: None,
+        });
+    }
+
+    Err(ClipboardError::new(
+        "native clipboard has no pasteable content",
+    ))
 }
 
 impl ClipboardError {
@@ -276,9 +296,13 @@ fn is_remote_session() -> bool {
 
 #[cfg(test)]
 mod tests {
+    use crate::discord::MessageAttachmentUpload;
+
     use image::{GenericImageView, ImageFormat};
 
-    use super::{CopyTextBackend, copy_text_backend_order, encode_image_as_png};
+    use super::{
+        CopyTextBackend, copy_text_backend_order, encode_image_as_png, paste_data_from_parts,
+    };
 
     #[test]
     fn local_sessions_try_native_clipboard_before_osc52() {
@@ -294,6 +318,43 @@ mod tests {
             copy_text_backend_order(true),
             [CopyTextBackend::Osc52, CopyTextBackend::Native]
         );
+    }
+
+    #[test]
+    fn clipboard_paste_data_prefers_image_before_text() {
+        let image = MessageAttachmentUpload::from_bytes("clipboard.png".to_owned(), vec![1, 2]);
+
+        let data = paste_data_from_parts(
+            None,
+            Some(image.clone()),
+            Some("plain text".to_owned()),
+        )
+        .expect("image-backed clipboard data is pasteable");
+
+        assert_eq!(data.image_attachment, Some(image));
+        assert_eq!(data.text, None);
+        assert_eq!(data.file_attachments, None);
+    }
+
+    #[test]
+    fn clipboard_paste_data_prefers_file_list_before_image() {
+        let file = MessageAttachmentUpload::from_path(
+            "/tmp/note.txt".into(),
+            "note.txt".to_owned(),
+            1,
+        );
+        let image = MessageAttachmentUpload::from_bytes("clipboard.png".to_owned(), vec![1, 2]);
+
+        let data = paste_data_from_parts(
+            Some(vec![file.clone()]),
+            Some(image),
+            None,
+        )
+        .expect("file-backed clipboard data is pasteable");
+
+        assert_eq!(data.file_attachments, Some(vec![file]));
+        assert_eq!(data.image_attachment, None);
+        assert_eq!(data.text, None);
     }
 
     #[test]
