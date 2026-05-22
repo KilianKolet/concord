@@ -141,23 +141,12 @@ fn message_row_content_metrics_cache_clears_on_discord_event() {
 
     state.push_event(AppEvent::VoiceStateUpdate {
         state: VoiceStateInfo {
-            guild_id: Id::new(1),
-            channel_id: None,
-            user_id: Id::new(99),
-            session_id: None,
-            member: Some(MemberInfo {
-                user_id: Id::new(99),
-                display_name: "voice nickname".to_owned(),
-                username: Some("voice-user".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            }),
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
+            member: Some(member_with_username(
+                Id::new(99),
+                "voice nickname",
+                "voice-user",
+            )),
+            ..voice_state(Id::new(1), None, Id::new(99))
         },
     });
 
@@ -169,14 +158,7 @@ fn rendered_mentions_affect_message_height() {
     let mut state = state_with_single_message_content("<@10><@10>");
     state.push_event(AppEvent::GuildMemberUpsert {
         guild_id: Id::new(1),
-        member: MemberInfo {
-            user_id: Id::new(10),
-            display_name: "a".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(Id::new(10), "a"),
     });
     let message = state.messages()[0];
 
@@ -187,32 +169,14 @@ fn rendered_mentions_affect_message_height() {
 #[test]
 fn forwarded_mentions_affect_height_from_source_channel_guild() {
     let mut state = DashboardState::new();
-    state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(2)),
-        channel_id: Id::new(9),
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "source".to_owned(),
-        kind: "GuildText".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }));
+    state.push_event(AppEvent::ChannelUpsert(text_channel_info(
+        Id::new(2),
+        Id::new(9),
+        "source",
+    )));
     state.push_event(AppEvent::GuildMemberUpsert {
         guild_id: Id::new(2),
-        member: MemberInfo {
-            user_id: Id::new(10),
-            display_name: "a".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(Id::new(10), "a"),
     });
     let message = MessageState {
         id: Id::new(1),

@@ -36,62 +36,26 @@ fn mark_as_read_action_enablement_is_scoped_to_action_channel() {
     let read_channel: Id<ChannelMarker> = Id::new(3);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: unread_channel,
-                parent_id: None,
                 position: Some(0),
                 last_message_id: Some(Id::new(20)),
-                name: "unread".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..text_channel_info(guild_id, unread_channel, "unread")
             },
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: read_channel,
-                parent_id: None,
                 position: Some(1),
                 last_message_id: Some(Id::new(30)),
-                name: "read".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..text_channel_info(guild_id, read_channel, "read")
             },
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: unread_channel,
-                last_acked_message_id: Some(Id::new(10)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: read_channel,
-                last_acked_message_id: Some(Id::new(30)),
-                mention_count: 0,
-            },
+            read_state_info(unread_channel, Some(Id::new(10)), 0),
+            read_state_info(read_channel, Some(Id::new(30)), 0),
         ],
     });
     state.activate_guild(super::ActiveGuildScope::Guild(guild_id));
@@ -231,83 +195,32 @@ fn guild_leader_action_toggle_mute_opens_duration_then_dispatches_command() {
 fn guild_leader_action_marks_unread_server_channels_as_read() {
     let guild_id: Id<GuildMarker> = Id::new(1);
     let mut state = DashboardState::new();
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: Id::new(2),
-                parent_id: None,
                 position: Some(0),
                 last_message_id: Some(Id::new(20)),
-                name: "unread-a".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..text_channel_info(guild_id, Id::new(2), "unread-a")
             },
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: Id::new(3),
-                parent_id: None,
                 position: Some(1),
                 last_message_id: Some(Id::new(30)),
-                name: "read".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..text_channel_info(guild_id, Id::new(3), "read")
             },
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: Id::new(4),
-                parent_id: None,
                 position: Some(2),
                 last_message_id: Some(Id::new(40)),
-                name: "unread-b".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..text_channel_info(guild_id, Id::new(4), "unread-b")
             },
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: Id::new(2),
-                last_acked_message_id: Some(Id::new(10)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(3),
-                last_acked_message_id: Some(Id::new(30)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(4),
-                last_acked_message_id: Some(Id::new(35)),
-                mention_count: 0,
-            },
+            read_state_info(Id::new(2), Some(Id::new(10)), 0),
+            read_state_info(Id::new(3), Some(Id::new(30)), 0),
+            read_state_info(Id::new(4), Some(Id::new(35)), 0),
         ],
     });
     state.focus_pane(FocusPane::Guilds);
@@ -339,16 +252,8 @@ fn guild_leader_action_skips_hidden_channels_when_marking_server_read() {
     let mut state = state_with_hidden_and_visible_channels();
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: Id::new(2),
-                last_acked_message_id: Some(Id::new(10)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(3),
-                last_acked_message_id: Some(Id::new(10)),
-                mention_count: 0,
-            },
+            read_state_info(Id::new(2), Some(Id::new(10)), 0),
+            read_state_info(Id::new(3), Some(Id::new(10)), 0),
         ],
     });
     state.push_event(notification_message_event(Id::new(2), "hidden"));

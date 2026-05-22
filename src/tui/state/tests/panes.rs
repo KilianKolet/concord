@@ -21,56 +21,22 @@ fn loaded_messages_are_unselected_until_message_pane_is_focused() {
     let channel_id: Id<ChannelMarker> = Id::new(2);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![text_channel_info(guild_id, channel_id, "general")],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
     for id in 1..=2u64 {
-        state.push_event(AppEvent::MessageCreate {
+        state.push_event(message_create_event(MessageCreateFixture {
             guild_id: Some(guild_id),
             channel_id,
             message_id: Id::new(id),
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: crate::discord::MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some(format!("msg {id}")),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
-            attachments: Vec::new(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
     }
 
     assert_eq!(state.selected_message(), 1);
@@ -88,42 +54,17 @@ fn startup_events_do_not_auto_open_direct_messages() {
     let mut state = DashboardState::new();
 
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(30)),
-        name: "neo".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(channel_id, "neo")
     }));
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(30),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(state.selected_channel_id(), None);
     assert_eq!(state.selected_channel_state(), None);
@@ -341,33 +282,17 @@ fn selected_channel_child_can_close_parent_category() {
 fn collapsed_category_keeps_unread_child_visible_until_another_channel_is_selected() {
     let mut state = state_with_channel_tree();
     state.push_event(AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id: Id::new(11),
-            last_acked_message_id: Some(Id::new(99)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(Id::new(11), Some(Id::new(99)), 0)],
     });
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(11),
         message_id: Id::new(100),
         author_id: Id::new(20),
         author: "alice".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("unread".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     state.toggle_selected_channel_category();
     assert_eq!(channel_entry_names(&state), vec!["general"]);

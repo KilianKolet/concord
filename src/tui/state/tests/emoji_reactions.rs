@@ -82,27 +82,14 @@ fn emoji_picker_items_include_custom_emojis_from_update_event() {
 fn emoji_picker_uses_channel_guild_when_selected_message_lacks_guild_id() {
     let mut state = state_with_custom_emojis();
 
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("history message without guild".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let items = state.emoji_reaction_items();
 
@@ -114,45 +101,17 @@ fn emoji_picker_uses_channel_guild_when_selected_message_lacks_guild_id() {
 fn emoji_picker_items_stay_unicode_only_for_direct_messages() {
     let mut state = DashboardState::new();
     let channel_id = Id::new(20);
-    state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "neo".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }));
+    state.push_event(AppEvent::ChannelUpsert(dm_channel_info(channel_id, "neo")));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let items = state.emoji_reaction_items();
     assert!(items.len() > 8);
@@ -322,10 +281,9 @@ fn show_reacted_users_requires_read_message_history() {
 #[test]
 fn custom_emoji_action_label_uses_id_when_images_are_disabled() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             reactions: vec![ReactionInfo {
                 emoji: ReactionEmoji::Custom {
                     id: Id::new(50),
@@ -337,7 +295,7 @@ fn custom_emoji_action_label_uses_id_when_images_are_disabled() {
             }],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.open_options_popup();
     for _ in 0..4 {
         state.move_option_down();

@@ -4,15 +4,129 @@ use crate::discord::ids::{
 };
 
 use crate::discord::{
-    ActivityInfo, ActivityKind, AppEvent, AttachmentUpdate, ChannelInfo,
+    ActivityInfo, ActivityKind, AppEvent, AttachmentInfo, AttachmentUpdate, ChannelInfo,
     ChannelNotificationOverrideInfo, ChannelRecipientInfo, ChannelUnreadState,
-    ChannelVisibilityStats, CurrentVoiceConnectionState, CustomEmojiInfo, DiscordState,
-    FriendStatus, GuildNotificationSettingsInfo, MemberInfo, MentionInfo, MessageInfo, MessageKind,
-    MessageReferenceInfo, MessageSnapshotInfo, MessageState, MutualGuildInfo, NotificationLevel,
-    PermissionOverwriteInfo, PermissionOverwriteKind, PollAnswerInfo, PollInfo, PresenceStatus,
-    ReactionEmoji, ReactionInfo, ReadStateInfo, RelationshipInfo, ReplyInfo, RoleInfo,
-    UserProfileInfo, VoiceStateInfo,
+    ChannelVisibilityStats, CurrentVoiceConnectionState, CustomEmojiInfo, DiscordState, EmbedInfo,
+    FriendStatus, GuildNotificationSettingsInfo, MemberInfo, MentionInfo, MessageInfo,
+    MessageInteractionInfo, MessageKind, MessageReferenceInfo, MessageSnapshotInfo, MessageState,
+    MutualGuildInfo, NotificationLevel, PermissionOverwriteInfo, PermissionOverwriteKind,
+    PollAnswerInfo, PollInfo, PresenceStatus, ReactionEmoji, ReactionInfo, ReadStateInfo,
+    RelationshipInfo, ReplyInfo, RoleInfo, UserProfileInfo, VoiceStateInfo,
 };
+
+struct MessageCreateFixture {
+    guild_id: Option<Id<GuildMarker>>,
+    channel_id: Id<ChannelMarker>,
+    message_id: Id<MessageMarker>,
+    author_id: Id<UserMarker>,
+    author: String,
+    author_avatar_url: Option<String>,
+    author_is_bot: bool,
+    author_role_ids: Vec<Id<RoleMarker>>,
+    message_kind: MessageKind,
+    interaction: Option<MessageInteractionInfo>,
+    reference: Option<MessageReferenceInfo>,
+    reply: Option<ReplyInfo>,
+    poll: Option<PollInfo>,
+    content: Option<String>,
+    sticker_names: Vec<String>,
+    mentions: Vec<MentionInfo>,
+    attachments: Vec<AttachmentInfo>,
+    embeds: Vec<EmbedInfo>,
+    forwarded_snapshots: Vec<MessageSnapshotInfo>,
+}
+
+struct GuildCreateFixture {
+    guild_id: Id<GuildMarker>,
+    name: String,
+    member_count: Option<u64>,
+    owner_id: Option<Id<UserMarker>>,
+    channels: Vec<ChannelInfo>,
+    members: Vec<MemberInfo>,
+    presences: Vec<(Id<UserMarker>, PresenceStatus)>,
+    roles: Vec<RoleInfo>,
+    emojis: Vec<CustomEmojiInfo>,
+}
+
+impl GuildCreateFixture {
+    fn new(guild_id: Id<GuildMarker>) -> Self {
+        Self {
+            guild_id,
+            name: "guild".to_owned(),
+            member_count: None,
+            owner_id: None,
+            channels: Vec::new(),
+            members: Vec::new(),
+            presences: Vec::new(),
+            roles: Vec::new(),
+            emojis: Vec::new(),
+        }
+    }
+}
+
+impl Default for MessageCreateFixture {
+    fn default() -> Self {
+        Self {
+            guild_id: None,
+            channel_id: Id::new(2),
+            message_id: Id::new(1),
+            author_id: Id::new(99),
+            author: "neo".to_owned(),
+            author_avatar_url: None,
+            author_is_bot: false,
+            author_role_ids: Vec::new(),
+            message_kind: MessageKind::regular(),
+            interaction: None,
+            reference: None,
+            reply: None,
+            poll: None,
+            content: Some("hello".to_owned()),
+            sticker_names: Vec::new(),
+            mentions: Vec::new(),
+            attachments: Vec::new(),
+            embeds: Vec::new(),
+            forwarded_snapshots: Vec::new(),
+        }
+    }
+}
+
+fn message_create_event(event: MessageCreateFixture) -> AppEvent {
+    AppEvent::MessageCreate {
+        guild_id: event.guild_id,
+        channel_id: event.channel_id,
+        message_id: event.message_id,
+        author_id: event.author_id,
+        author: event.author,
+        author_avatar_url: event.author_avatar_url,
+        author_is_bot: event.author_is_bot,
+        author_role_ids: event.author_role_ids,
+        message_kind: event.message_kind,
+        interaction: event.interaction,
+        reference: event.reference,
+        reply: event.reply,
+        poll: event.poll,
+        content: event.content,
+        sticker_names: event.sticker_names,
+        mentions: event.mentions,
+        attachments: event.attachments,
+        embeds: event.embeds,
+        forwarded_snapshots: event.forwarded_snapshots,
+    }
+}
+
+fn guild_create_event(event: GuildCreateFixture) -> AppEvent {
+    AppEvent::GuildCreate {
+        guild_id: event.guild_id,
+        name: event.name,
+        member_count: event.member_count,
+        owner_id: event.owner_id,
+        channels: event.channels,
+        members: event.members,
+        presences: event.presences,
+        roles: event.roles,
+        emojis: event.emojis,
+    }
+}
 
 fn profile_info(user_id: u64, guild_nick: Option<&str>) -> UserProfileInfo {
     UserProfileInfo {
@@ -47,41 +161,185 @@ fn relationship_info(
     }
 }
 
-fn guild_text_channel(guild_id: Id<GuildMarker>, channel_id: Id<ChannelMarker>) -> ChannelInfo {
-    ChannelInfo {
-        guild_id: Some(guild_id),
-        channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "general".to_owned(),
-        kind: "GuildText".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }
-}
-
-fn private_channel(channel_id: Id<ChannelMarker>) -> ChannelInfo {
+fn channel_info(
+    channel_id: Id<ChannelMarker>,
+    kind: impl Into<String>,
+    permission_overwrites: Vec<PermissionOverwriteInfo>,
+) -> ChannelInfo {
     ChannelInfo {
         guild_id: None,
         channel_id,
         parent_id: None,
         position: None,
         last_message_id: None,
-        name: "dm".to_owned(),
-        kind: "dm".to_owned(),
+        name: String::new(),
+        kind: kind.into(),
         message_count: None,
         total_message_sent: None,
         thread_archived: None,
         thread_locked: None,
         thread_pinned: None,
         recipients: None,
-        permission_overwrites: Vec::new(),
+        permission_overwrites,
+    }
+}
+
+fn guild_category_channel(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+    position: i32,
+) -> ChannelInfo {
+    ChannelInfo {
+        guild_id: Some(guild_id),
+        name: name.into(),
+        kind: "category".to_owned(),
+        position: Some(position),
+        ..channel_info(channel_id, "category", Vec::new())
+    }
+}
+
+fn guild_child_text_channel(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    parent_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+    position: i32,
+) -> ChannelInfo {
+    ChannelInfo {
+        guild_id: Some(guild_id),
+        name: name.into(),
+        kind: "text".to_owned(),
+        parent_id: Some(parent_id),
+        position: Some(position),
+        ..channel_info(channel_id, "text", Vec::new())
+    }
+}
+
+fn dm_channel(channel_id: Id<ChannelMarker>, name: impl Into<String>) -> ChannelInfo {
+    ChannelInfo {
+        kind: "dm".to_owned(),
+        name: name.into(),
+        ..channel_info(channel_id, "dm", Vec::new())
+    }
+}
+
+fn dm_channel_with_recipients(
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+    kind: impl Into<String>,
+    recipients: Vec<ChannelRecipientInfo>,
+) -> ChannelInfo {
+    ChannelInfo {
+        kind: kind.into(),
+        recipients: Some(recipients),
+        ..dm_channel(channel_id, name)
+    }
+}
+
+fn guild_thread_channel(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    parent_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+) -> ChannelInfo {
+    ChannelInfo {
+        guild_id: Some(guild_id),
+        parent_id: Some(parent_id),
+        name: name.into(),
+        kind: "thread".to_owned(),
+        thread_archived: Some(false),
+        thread_locked: Some(false),
+        ..channel_info(channel_id, "thread", Vec::new())
+    }
+}
+
+fn guild_voice_channel(guild_id: Id<GuildMarker>, channel_id: Id<ChannelMarker>) -> ChannelInfo {
+    ChannelInfo {
+        guild_id: Some(guild_id),
+        kind: "GuildVoice".to_owned(),
+        name: "Lobby".to_owned(),
+        position: Some(0),
+        ..channel_info(channel_id, "GuildVoice", Vec::new())
+    }
+}
+
+fn member_info(user_id: Id<UserMarker>, display_name: impl Into<String>) -> MemberInfo {
+    MemberInfo {
+        user_id,
+        display_name: display_name.into(),
+        username: None,
+        is_bot: false,
+        avatar_url: None,
+        role_ids: Vec::new(),
+    }
+}
+
+fn member_with_username(user_id: Id<UserMarker>, display_name: &str, username: &str) -> MemberInfo {
+    MemberInfo {
+        username: Some(username.to_owned()),
+        ..member_info(user_id, display_name)
+    }
+}
+
+fn member_with_roles(
+    user_id: Id<UserMarker>,
+    display_name: impl Into<String>,
+    role_ids: Vec<Id<RoleMarker>>,
+) -> MemberInfo {
+    MemberInfo {
+        role_ids,
+        ..member_info(user_id, display_name)
+    }
+}
+
+fn role_info(role_id: Id<RoleMarker>, name: impl Into<String>, permissions: u64) -> RoleInfo {
+    RoleInfo {
+        id: role_id,
+        name: name.into(),
+        color: None,
+        position: 0,
+        hoist: false,
+        permissions,
+    }
+}
+
+fn voice_state(
+    guild_id: Id<GuildMarker>,
+    channel_id: Option<Id<ChannelMarker>>,
+    user_id: Id<UserMarker>,
+) -> VoiceStateInfo {
+    VoiceStateInfo {
+        guild_id,
+        channel_id,
+        user_id,
+        session_id: None,
+        member: None,
+        deaf: false,
+        mute: false,
+        self_deaf: false,
+        self_mute: false,
+        self_stream: false,
+    }
+}
+
+fn read_state_info(
+    channel_id: Id<ChannelMarker>,
+    last_acked_message_id: Option<Id<MessageMarker>>,
+    mention_count: u32,
+) -> ReadStateInfo {
+    ReadStateInfo {
+        channel_id,
+        last_acked_message_id,
+        mention_count,
+    }
+}
+
+fn latest_history_loaded(channel_id: Id<ChannelMarker>, messages: Vec<MessageInfo>) -> AppEvent {
+    AppEvent::MessageHistoryLoaded {
+        channel_id,
+        before: None,
+        messages,
     }
 }
 
@@ -120,27 +378,15 @@ fn message_create(
     content: &str,
     mentions: Vec<MentionInfo>,
 ) -> AppEvent {
-    AppEvent::MessageCreate {
+    message_create_event(MessageCreateFixture {
         guild_id,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(content.to_owned()),
-        sticker_names: Vec::new(),
         mentions,
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    }
+        ..MessageCreateFixture::default()
+    })
 }
 
 mod channels;

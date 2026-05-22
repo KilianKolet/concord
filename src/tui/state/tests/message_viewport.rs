@@ -6,56 +6,22 @@ fn message_creation_keeps_viewport_on_latest() {
     let channel_id: Id<ChannelMarker> = Id::new(2);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![text_channel_info(guild_id, channel_id, "general")],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
     for id in 1..=3u64 {
-        state.push_event(AppEvent::MessageCreate {
+        state.push_event(message_create_event(MessageCreateFixture {
             guild_id: Some(guild_id),
             channel_id,
             message_id: Id::new(id),
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: crate::discord::MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some(format!("msg {id}")),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
-            attachments: Vec::new(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
     }
 
     assert_eq!(state.selected_message(), 2);
@@ -74,27 +40,14 @@ fn message_scroll_preserves_position_when_not_following() {
     assert_eq!(state.selected_message(), 3);
     assert!(!state.message_auto_follow());
 
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(6),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("msg 6".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(state.selected_message(), 3);
     assert_eq!(state.messages()[state.selected_message()].id, Id::new(4));
@@ -119,14 +72,13 @@ fn message_scroll_preserves_position_when_not_following() {
         detail: 1,
     };
     let mut updated_discord = state.discord.clone();
-    updated_discord.apply_event(&AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    updated_discord.apply_event(&latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some("new message".to_owned()),
             ..message_info(Id::new(2), 6)
         }],
-    });
+    ));
     let snapshot = updated_discord.snapshot(SnapshotRevision {
         global: 2,
         navigation: 1,
@@ -176,27 +128,15 @@ fn user_sent_message_from_history_position_does_not_force_follow() {
     // Simulate the REST send response arriving as a self-authored
     // MessageCreate. Auto-follow must not yank the cursor down because the
     // user was reading older history.
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(99),
         author_id: me,
         author: "me".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages();
     assert_eq!(messages[state.selected_message()].id, parked_message_id);
@@ -529,27 +469,14 @@ fn message_viewport_scrolls_by_rendered_line() {
 #[test]
 fn viewport_scroll_moves_to_next_message_after_current_message() {
     let mut state = state_with_single_message_content("abcdefghijkl");
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("next".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.set_message_view_height(3);
     state.jump_top();
@@ -576,27 +503,14 @@ fn viewport_scroll_moves_to_next_message_after_current_message() {
 #[test]
 fn focused_message_selection_returns_none_when_viewport_scrolled_past_selection() {
     let mut state = state_with_single_message_content("abcdefghijkl");
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("next".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.set_message_view_height(3);
     state.jump_top();
@@ -615,27 +529,14 @@ fn focused_message_selection_returns_none_when_viewport_scrolled_past_selection(
 #[test]
 fn moving_cursor_to_first_message_resets_top_line_scroll() {
     let mut state = state_with_single_message_content("abcdefghijkl");
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("next".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.set_message_view_height(3);
     state.jump_top();
@@ -678,27 +579,14 @@ fn jumping_to_first_message_resets_item_scroll_when_view_has_spare_rows() {
 #[test]
 fn viewport_scrolls_by_rendered_line_when_selected_message_is_below_top() {
     let mut state = state_with_single_message_content("abcdefghijkl");
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("next".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.set_message_view_height(3);
     state.jump_top();
@@ -731,27 +619,14 @@ fn viewport_scrolls_by_rendered_line_when_selected_message_is_below_top() {
 fn tall_message_clamp_keeps_next_selected_message_visible() {
     let mut state =
         state_with_single_message_content("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz");
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("next".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.set_message_view_height(3);
     state.jump_top();
@@ -773,27 +648,14 @@ fn tall_message_clamp_keeps_next_selected_message_visible() {
 #[test]
 fn viewport_scroll_up_enters_previous_long_message_at_last_line() {
     let mut state = state_with_single_message_content("abcdefghijkl");
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("next".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.set_message_view_height(3);
     state.jump_top();
@@ -1003,11 +865,10 @@ fn history_load_preserves_manual_scroll_position_by_message_id() {
     let selected_id = state.messages()[state.selected_message()].id;
     let scroll_id = state.messages()[state.message_scroll()].id;
 
-    state.push_event(AppEvent::MessageHistoryLoaded {
+    state.push_event(latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 5)],
-    });
+        vec![message_info(channel_id, 5)],
+    ));
 
     assert_eq!(state.messages()[state.selected_message()].id, selected_id);
     assert_eq!(state.messages()[state.message_scroll()].id, scroll_id);

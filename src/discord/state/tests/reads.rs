@@ -2,20 +2,10 @@ use super::*;
 
 fn channel_with_last_message(channel_id: Id<ChannelMarker>, last_message_id: u64) -> ChannelInfo {
     ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(last_message_id)),
+        guild_id: Some(Id::new(1)),
         name: "general".to_owned(),
-        kind: "text".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..channel_info(channel_id, "GuildText", Vec::new())
     }
 }
 
@@ -36,11 +26,11 @@ fn channel_unread_state_follows_ack_pointer() {
         )));
         if let Some(last_acked_message_id) = last_acked_message_id {
             state.apply_event(&AppEvent::ReadStateInit {
-                entries: vec![ReadStateInfo {
+                entries: vec![read_state_info(
                     channel_id,
-                    last_acked_message_id: Some(Id::new(last_acked_message_id)),
-                    mention_count: 0,
-                }],
+                    Some(Id::new(last_acked_message_id)),
+                    0,
+                )],
             });
         }
 
@@ -61,34 +51,18 @@ fn current_user_message_create_keeps_channel_seen() {
         channel_id, 100,
     )));
     state.apply_event(&AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id,
-            last_acked_message_id: Some(Id::new(100)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(channel_id, Some(Id::new(100)), 0)],
     });
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id,
         message_id: Id::new(200),
         author_id: current_user_id,
         author: "me".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("sent from this account".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(state.channel_unread(channel_id), ChannelUnreadState::Seen);
     assert_eq!(state.channel_ack_target(channel_id), None);
@@ -103,11 +77,7 @@ fn channel_with_pending_mentions_reports_mention_count() {
         channel_id, 200,
     )));
     state.apply_event(&AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id,
-            last_acked_message_id: Some(Id::new(200)),
-            mention_count: 3,
-        }],
+        entries: vec![read_state_info(channel_id, Some(Id::new(200)), 3)],
     });
 
     assert_eq!(
@@ -136,21 +106,9 @@ fn guild_unread_sums_channel_mentions_before_plain_unread() {
     )));
     state.apply_event(&AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: first_channel_id,
-                last_acked_message_id: Some(Id::new(200)),
-                mention_count: 2,
-            },
-            ReadStateInfo {
-                channel_id: second_channel_id,
-                last_acked_message_id: Some(Id::new(300)),
-                mention_count: 3,
-            },
-            ReadStateInfo {
-                channel_id: third_channel_id,
-                last_acked_message_id: Some(Id::new(100)),
-                mention_count: 0,
-            },
+            read_state_info(first_channel_id, Some(Id::new(200)), 2),
+            read_state_info(second_channel_id, Some(Id::new(300)), 3),
+            read_state_info(third_channel_id, Some(Id::new(100)), 0),
         ],
     });
 
@@ -168,11 +126,7 @@ fn message_ack_clears_outstanding_mentions_and_advances_pointer() {
         channel_id, 500,
     )));
     state.apply_event(&AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id,
-            last_acked_message_id: Some(Id::new(100)),
-            mention_count: 5,
-        }],
+        entries: vec![read_state_info(channel_id, Some(Id::new(100)), 5)],
     });
     assert_eq!(
         state.channel_unread(channel_id),

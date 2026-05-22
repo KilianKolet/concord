@@ -82,25 +82,13 @@ fn submit_composer_drops_message_when_send_revoked_after_open() {
     // Apply a CHANNEL_UPDATE that strips SEND_MESSAGES via a channel
     // overwrite on @everyone (role id == guild id == 1).
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id: Id::new(2),
-        parent_id: None,
-        position: Some(0),
-        last_message_id: None,
-        name: "general".to_owned(),
-        kind: "GuildText".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
         permission_overwrites: vec![PermissionOverwriteInfo {
             id: 1,
             kind: PermissionOverwriteKind::Role,
             allow: 0,
             deny: 0x800,
         }],
+        ..positioned_text_channel_info(Id::new(1), Id::new(2), "general", 0)
     }));
     assert_eq!(state.submit_composer(), None);
     assert!(!state.is_composing());
@@ -114,25 +102,13 @@ fn active_channel_is_cleared_when_view_permission_is_revoked() {
     assert!(state.is_composing());
 
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id: Id::new(2),
-        parent_id: None,
-        position: Some(0),
-        last_message_id: None,
-        name: "general".to_owned(),
-        kind: "GuildText".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
         permission_overwrites: vec![PermissionOverwriteInfo {
             id: 1,
             kind: PermissionOverwriteKind::Role,
             allow: 0,
             deny: 0x400,
         }],
+        ..positioned_text_channel_info(Id::new(1), Id::new(2), "general", 0)
     }));
 
     assert_eq!(state.selected_channel_id(), None);
@@ -527,14 +503,7 @@ fn typing_after_at_filters_candidates_by_substring() {
 
     state.push_event(AppEvent::GuildMemberUpsert {
         guild_id: Id::new(1),
-        member: MemberInfo {
-            user_id: Id::new(30),
-            display_name: "Offline Sally".to_owned(),
-            username: Some("offlinesally".to_owned()),
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_with_username(Id::new(30), "Offline Sally", "offlinesally"),
     });
     let names: Vec<_> = state
         .composer_mention_candidates()
@@ -683,14 +652,11 @@ fn mention_picker_keeps_more_than_visible_candidates_selectable() {
     for index in 0..10 {
         state.push_event(AppEvent::GuildMemberUpsert {
             guild_id: Id::new(1),
-            member: MemberInfo {
-                user_id: Id::new(100 + index),
-                display_name: format!("Scroll {index:02}"),
-                username: Some(format!("scroll{index:02}")),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
+            member: member_with_username(
+                Id::new(100 + index),
+                format!("Scroll {index:02}"),
+                format!("scroll{index:02}"),
+            ),
         });
     }
     state.start_composer();
@@ -1096,27 +1062,15 @@ fn typing_footer_resolves_one_user_to_alias() {
         Some("Live Nick is typing\u{2026}".to_owned())
     );
 
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id,
         message_id: Id::new(100),
         author_id: user_id,
         author: "Live Nick".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("sent".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(state.typing_footer_for_selected_channel(), None);
 }

@@ -35,32 +35,11 @@ fn forum_posts_loaded_event_populates_selected_forum_items() {
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: forum_id,
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "announcements".to_owned(),
-            kind: "forum".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
 
@@ -78,20 +57,10 @@ fn forum_posts_loaded_event_populates_selected_forum_items() {
         offset: 0,
         next_offset: 1,
         posts: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: Id::new(30),
-            parent_id: Some(forum_id),
             position: Some(0),
-            last_message_id: None,
-            name: "welcome".to_owned(),
-            kind: "GuildPublicThread".to_owned(),
             message_count: Some(1),
             total_message_sent: Some(1),
-            thread_archived: Some(false),
-            thread_locked: Some(false),
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
+            ..forum_thread_info(guild_id, forum_id, 30, "welcome", None, false)
         }],
         preview_messages: vec![preview],
         has_more: false,
@@ -125,17 +94,11 @@ fn forum_post_first_page_starts_cursor_at_top_and_next_page_appends() {
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![forum_channel_info(guild_id, forum_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
     state.focus_pane(FocusPane::Messages);
@@ -198,17 +161,11 @@ fn archived_forum_posts_render_after_active_posts_without_moving_shared_active_p
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![forum_channel_info(guild_id, forum_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
 
@@ -269,17 +226,11 @@ fn forum_posts_resort_by_last_message_id_when_server_index_is_stale() {
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![forum_channel_info(guild_id, forum_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
 
@@ -315,17 +266,11 @@ fn forum_pinned_posts_float_to_top_preserving_relative_order() {
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![forum_channel_info(guild_id, forum_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
 
@@ -372,17 +317,11 @@ fn forum_channel_upsert_inserts_new_thread_at_top_of_active_list() {
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![forum_channel_info(guild_id, forum_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
 
@@ -436,17 +375,11 @@ fn forum_channel_upsert_effect_inserts_new_thread_after_snapshot_restore() {
     let new_thread = forum_thread_info(guild_id, forum_id, 31, "brand-new", None, false);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![forum_channel_info(guild_id, forum_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
     state.push_event(AppEvent::ForumPostsLoaded {
@@ -460,21 +393,15 @@ fn forum_channel_upsert_effect_inserts_new_thread_after_snapshot_restore() {
     });
 
     let mut snapshot_state = DiscordState::default();
-    snapshot_state.apply_event(&AppEvent::GuildCreate {
+    snapshot_state.apply_event(&guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             forum_channel_info(guild_id, forum_id),
             welcome_thread,
             new_thread.clone(),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.restore_discord_snapshot(snapshot_state);
     state.push_effect(AppEvent::ChannelUpsert(new_thread.clone()));
 
@@ -498,11 +425,10 @@ fn forum_sidebar_unread_aggregates_unread_child_posts() {
     let thread_id = Id::new(31);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             forum_channel_info(guild_id, forum_id),
             forum_thread_info(
                 guild_id,
@@ -513,18 +439,9 @@ fn forum_sidebar_unread_aggregates_unread_child_posts() {
                 false,
             ),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.push_event(AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id: thread_id,
-            last_acked_message_id: Some(Id::new(299)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(thread_id, Some(Id::new(299)), 0)],
     });
 
     assert_eq!(
@@ -540,11 +457,10 @@ fn forum_sidebar_unread_aggregates_child_notification_count() {
     let thread_id = Id::new(31);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             forum_channel_info(guild_id, forum_id),
             forum_thread_info(
                 guild_id,
@@ -555,12 +471,7 @@ fn forum_sidebar_unread_aggregates_child_notification_count() {
                 false,
             ),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.push_event(AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![GuildNotificationSettingsInfo {
             guild_id: Some(guild_id),
@@ -573,33 +484,16 @@ fn forum_sidebar_unread_aggregates_child_notification_count() {
         }],
     });
     state.push_event(AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id: thread_id,
-            last_acked_message_id: Some(Id::new(299)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(thread_id, Some(Id::new(299)), 0)],
     });
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id: thread_id,
         message_id: Id::new(300),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("new post body".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(
         state.sidebar_channel_unread(forum_id),
@@ -620,11 +514,10 @@ fn opening_forum_channel_marks_unread_child_posts_as_read() {
     let mut forum = forum_channel_info(guild_id, forum_id);
     forum.last_message_id = Some(Id::new(200));
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             forum,
             forum_thread_info(
                 guild_id,
@@ -635,24 +528,11 @@ fn opening_forum_channel_marks_unread_child_posts_as_read() {
                 false,
             ),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: forum_id,
-                last_acked_message_id: Some(Id::new(199)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: thread_id,
-                last_acked_message_id: Some(Id::new(299)),
-                mention_count: 0,
-            },
+            read_state_info(forum_id, Some(Id::new(199)), 0),
+            read_state_info(thread_id, Some(Id::new(299)), 0),
         ],
     });
     state.confirm_selected_guild();
@@ -692,11 +572,10 @@ fn hidden_forum_child_posts_are_not_listed_or_acked() {
     private_thread.kind = "GuildPrivateThread".to_owned();
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
             forum_channel_info(guild_id, forum_id),
             forum_thread_info(
                 guild_id,
@@ -708,12 +587,7 @@ fn hidden_forum_child_posts_are_not_listed_or_acked() {
             ),
             private_thread.clone(),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.push_event(AppEvent::ForumPostsLoaded {
         channel_id: forum_id,
         archive_state: ForumPostArchiveState::Active,
@@ -735,16 +609,8 @@ fn hidden_forum_child_posts_are_not_listed_or_acked() {
     });
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: public_thread_id,
-                last_acked_message_id: Some(Id::new(299)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: private_thread_id,
-                last_acked_message_id: Some(Id::new(399)),
-                mention_count: 0,
-            },
+            read_state_info(public_thread_id, Some(Id::new(299)), 0),
+            read_state_info(private_thread_id, Some(Id::new(399)), 0),
         ],
     });
     state.confirm_selected_guild();
@@ -838,27 +704,15 @@ fn returning_from_forum_post_restores_parent_post_cursor() {
 fn poll_vote_actions_are_available_by_default() {
     let mut state = state_with_messages(1);
     state.focus_pane(FocusPane::Messages);
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info(false)),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let actions = state.selected_message_action_items();
 

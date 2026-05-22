@@ -1,14 +1,15 @@
 use crate::discord::ids::{
     Id,
-    marker::{ChannelMarker, GuildMarker, UserMarker},
+    marker::{ChannelMarker, GuildMarker, MessageMarker, RoleMarker, UserMarker},
 };
 
 use super::super::{ActiveGuildScope, DashboardState, MessageState};
 use crate::discord::{
     AppEvent, AttachmentInfo, ChannelInfo, CustomEmojiInfo, EmbedInfo, GuildFolder, MemberInfo,
-    MessageInfo, MessageKind, MessageReferenceInfo, MessageSnapshotInfo, PermissionOverwriteInfo,
-    PermissionOverwriteKind, PollAnswerInfo, PollInfo, PresenceStatus, ReactionEmoji, ReactionInfo,
-    RoleInfo,
+    MentionInfo, MessageInfo, MessageInteractionInfo, MessageKind, MessageReferenceInfo,
+    MessageSnapshotInfo, PermissionOverwriteInfo, PermissionOverwriteKind, PollAnswerInfo,
+    PollInfo, PresenceStatus, ReactionEmoji, ReactionInfo, ReadStateInfo, ReplyInfo, RoleInfo,
+    VoiceStateInfo,
 };
 
 pub(super) const PERM_ADD_REACTIONS: u64 = 0x0000_0000_0000_0040;
@@ -16,6 +17,299 @@ pub(super) const PERM_VIEW_CHANNEL: u64 = 0x0000_0000_0000_0400;
 pub(super) const PERM_MANAGE_MESSAGES: u64 = 0x0000_0000_0000_2000;
 pub(super) const PERM_READ_MESSAGE_HISTORY: u64 = 0x0000_0000_0001_0000;
 pub(super) const PERM_PIN_MESSAGES: u64 = 0x0008_0000_0000_0000;
+
+pub(super) struct MessageCreateFixture {
+    pub(super) guild_id: Option<Id<GuildMarker>>,
+    pub(super) channel_id: Id<ChannelMarker>,
+    pub(super) message_id: Id<MessageMarker>,
+    pub(super) author_id: Id<UserMarker>,
+    pub(super) author: String,
+    pub(super) author_avatar_url: Option<String>,
+    pub(super) author_is_bot: bool,
+    pub(super) author_role_ids: Vec<Id<RoleMarker>>,
+    pub(super) message_kind: MessageKind,
+    pub(super) interaction: Option<MessageInteractionInfo>,
+    pub(super) reference: Option<MessageReferenceInfo>,
+    pub(super) reply: Option<ReplyInfo>,
+    pub(super) poll: Option<PollInfo>,
+    pub(super) content: Option<String>,
+    pub(super) sticker_names: Vec<String>,
+    pub(super) mentions: Vec<MentionInfo>,
+    pub(super) attachments: Vec<AttachmentInfo>,
+    pub(super) embeds: Vec<EmbedInfo>,
+    pub(super) forwarded_snapshots: Vec<MessageSnapshotInfo>,
+}
+
+impl Default for MessageCreateFixture {
+    fn default() -> Self {
+        Self {
+            guild_id: Some(Id::new(1)),
+            channel_id: Id::new(2),
+            message_id: Id::new(1),
+            author_id: Id::new(99),
+            author: "neo".to_owned(),
+            author_avatar_url: None,
+            author_is_bot: false,
+            author_role_ids: Vec::new(),
+            message_kind: MessageKind::regular(),
+            interaction: None,
+            reference: None,
+            reply: None,
+            poll: None,
+            content: Some("hello".to_owned()),
+            sticker_names: Vec::new(),
+            mentions: Vec::new(),
+            attachments: Vec::new(),
+            embeds: Vec::new(),
+            forwarded_snapshots: Vec::new(),
+        }
+    }
+}
+
+pub(super) fn message_create_event(event: MessageCreateFixture) -> AppEvent {
+    AppEvent::MessageCreate {
+        guild_id: event.guild_id,
+        channel_id: event.channel_id,
+        message_id: event.message_id,
+        author_id: event.author_id,
+        author: event.author,
+        author_avatar_url: event.author_avatar_url,
+        author_is_bot: event.author_is_bot,
+        author_role_ids: event.author_role_ids,
+        message_kind: event.message_kind,
+        interaction: event.interaction,
+        reference: event.reference,
+        reply: event.reply,
+        poll: event.poll,
+        content: event.content,
+        sticker_names: event.sticker_names,
+        mentions: event.mentions,
+        attachments: event.attachments,
+        embeds: event.embeds,
+        forwarded_snapshots: event.forwarded_snapshots,
+    }
+}
+
+pub(super) fn channel_info(
+    channel_id: Id<ChannelMarker>,
+    kind: impl Into<String>,
+    permission_overwrites: Vec<PermissionOverwriteInfo>,
+) -> ChannelInfo {
+    ChannelInfo {
+        guild_id: None,
+        channel_id,
+        parent_id: None,
+        position: None,
+        last_message_id: None,
+        name: String::new(),
+        kind: kind.into(),
+        message_count: None,
+        total_message_sent: None,
+        thread_archived: None,
+        thread_locked: None,
+        thread_pinned: None,
+        recipients: None,
+        permission_overwrites,
+    }
+}
+
+pub(super) fn text_channel_info(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+) -> ChannelInfo {
+    ChannelInfo {
+        guild_id: Some(guild_id),
+        name: name.into(),
+        ..channel_info(channel_id, "GuildText", Vec::new())
+    }
+}
+
+pub(super) fn positioned_text_channel_info(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+    position: i32,
+) -> ChannelInfo {
+    ChannelInfo {
+        kind: "text".to_owned(),
+        position: Some(position),
+        ..text_channel_info(guild_id, channel_id, name)
+    }
+}
+
+pub(super) fn category_channel_info(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+    position: i32,
+) -> ChannelInfo {
+    ChannelInfo {
+        kind: "category".to_owned(),
+        position: Some(position),
+        ..text_channel_info(guild_id, channel_id, name)
+    }
+}
+
+pub(super) fn child_text_channel_info(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    parent_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+    position: i32,
+) -> ChannelInfo {
+    ChannelInfo {
+        parent_id: Some(parent_id),
+        ..positioned_text_channel_info(guild_id, channel_id, name, position)
+    }
+}
+
+pub(super) fn thread_channel_info(
+    guild_id: Id<GuildMarker>,
+    parent_id: Id<ChannelMarker>,
+    thread_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+) -> ChannelInfo {
+    ChannelInfo {
+        parent_id: Some(parent_id),
+        name: name.into(),
+        kind: "thread".to_owned(),
+        thread_archived: Some(false),
+        thread_locked: Some(false),
+        ..text_channel_info(guild_id, thread_id, "")
+    }
+}
+
+pub(super) fn dm_channel_info(
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+) -> ChannelInfo {
+    ChannelInfo {
+        name: name.into(),
+        kind: "dm".to_owned(),
+        ..channel_info(channel_id, "dm", Vec::new())
+    }
+}
+
+pub(super) fn voice_channel_info(
+    guild_id: Id<GuildMarker>,
+    channel_id: Id<ChannelMarker>,
+    name: impl Into<String>,
+) -> ChannelInfo {
+    ChannelInfo {
+        kind: "GuildVoice".to_owned(),
+        position: Some(0),
+        ..text_channel_info(guild_id, channel_id, name)
+    }
+}
+
+pub(super) fn member_info(user_id: Id<UserMarker>, display_name: impl Into<String>) -> MemberInfo {
+    MemberInfo {
+        user_id,
+        display_name: display_name.into(),
+        username: None,
+        is_bot: false,
+        avatar_url: None,
+        role_ids: Vec::new(),
+    }
+}
+
+pub(super) fn member_with_username(
+    user_id: Id<UserMarker>,
+    display_name: impl Into<String>,
+    username: impl Into<String>,
+) -> MemberInfo {
+    MemberInfo {
+        username: Some(username.into()),
+        ..member_info(user_id, display_name)
+    }
+}
+
+pub(super) fn member_with_roles(
+    user_id: Id<UserMarker>,
+    display_name: impl Into<String>,
+    role_ids: Vec<Id<RoleMarker>>,
+) -> MemberInfo {
+    MemberInfo {
+        role_ids,
+        ..member_info(user_id, display_name)
+    }
+}
+
+pub(super) fn role_info(
+    role_id: Id<RoleMarker>,
+    name: impl Into<String>,
+    permissions: u64,
+) -> RoleInfo {
+    RoleInfo {
+        id: role_id,
+        name: name.into(),
+        color: None,
+        position: 0,
+        hoist: false,
+        permissions,
+    }
+}
+
+pub(super) fn voice_state(
+    guild_id: Id<GuildMarker>,
+    channel_id: Option<Id<ChannelMarker>>,
+    user_id: Id<UserMarker>,
+) -> VoiceStateInfo {
+    VoiceStateInfo {
+        guild_id,
+        channel_id,
+        user_id,
+        session_id: None,
+        member: None,
+        deaf: false,
+        mute: false,
+        self_deaf: false,
+        self_mute: false,
+        self_stream: false,
+    }
+}
+
+pub(super) fn read_state_info(
+    channel_id: Id<ChannelMarker>,
+    last_acked_message_id: Option<Id<MessageMarker>>,
+    mention_count: u32,
+) -> ReadStateInfo {
+    ReadStateInfo {
+        channel_id,
+        last_acked_message_id,
+        mention_count,
+    }
+}
+
+pub(super) fn guild_create_event(
+    guild_id: Id<GuildMarker>,
+    name: impl Into<String>,
+    channels: Vec<ChannelInfo>,
+) -> AppEvent {
+    AppEvent::GuildCreate {
+        guild_id,
+        name: name.into(),
+        member_count: None,
+        owner_id: None,
+        channels,
+        members: Vec::new(),
+        presences: Vec::new(),
+        roles: Vec::new(),
+        emojis: Vec::new(),
+    }
+}
+
+pub(super) fn latest_history_loaded(
+    channel_id: Id<ChannelMarker>,
+    messages: Vec<MessageInfo>,
+) -> AppEvent {
+    AppEvent::MessageHistoryLoaded {
+        channel_id,
+        before: None,
+        messages,
+    }
+}
 
 /// Build a guild with a single channel where @everyone keeps
 /// VIEW_CHANNEL but loses SEND_MESSAGES. This is an announcement-style
@@ -78,54 +372,24 @@ fn state_with_other_user_message_permissions_and_member(
         name: "guild".to_owned(),
         member_count: Some(1),
         owner_id: Some(owner),
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild),
-            channel_id: channel,
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![positioned_text_channel_info(guild, channel, "general", 0)],
         members: include_current_member
-            .then_some(MemberInfo {
-                user_id: me,
-                display_name: "me".to_owned(),
-                username: Some("me".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            })
+            .then_some(member_with_username(me, "me", "me"))
             .into_iter()
             .collect(),
         presences: Vec::new(),
-        roles: vec![RoleInfo {
-            id: Id::new(guild.get()),
-            name: "@everyone".to_owned(),
-            color: None,
-            position: 0,
-            hoist: false,
-            permissions,
-        }],
+        roles: vec![role_info(Id::new(guild.get()), "@everyone", permissions)],
         emojis: Vec::new(),
     });
     state.activate_guild(ActiveGuildScope::Guild(guild));
     state.activate_channel(channel);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: channel,
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        channel,
+        vec![MessageInfo {
             reactions,
             ..message_info(channel, 1)
         }],
-    });
+    ));
     state
 }
 
@@ -148,76 +412,23 @@ pub(super) fn state_with_hidden_and_visible_channels() -> DashboardState {
         owner_id: Some(owner),
         channels: vec![
             ChannelInfo {
-                guild_id: Some(guild),
-                channel_id: hidden,
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "secret".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
                 permission_overwrites: vec![PermissionOverwriteInfo {
                     id: guild.get(),
                     kind: PermissionOverwriteKind::Role,
                     allow: 0,
                     deny: 0x400,
                 }],
+                ..positioned_text_channel_info(guild, hidden, "secret", 0)
             },
+            positioned_text_channel_info(guild, visible, "general", 1),
             ChannelInfo {
-                guild_id: Some(guild),
-                channel_id: visible,
-                parent_id: None,
-                position: Some(1),
-                last_message_id: None,
-                name: "general".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild),
-                channel_id: voice,
-                parent_id: None,
                 position: Some(2),
-                last_message_id: None,
-                name: "voice".to_owned(),
-                kind: "GuildVoice".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..voice_channel_info(guild, voice, "voice")
             },
         ],
-        members: vec![MemberInfo {
-            user_id: me,
-            display_name: "me".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(me, "me")],
         presences: Vec::new(),
-        roles: vec![RoleInfo {
-            id: Id::new(guild.get()),
-            name: "@everyone".to_owned(),
-            color: None,
-            position: 0,
-            hoist: false,
-            permissions: 0x400,
-        }],
+        roles: vec![role_info(Id::new(guild.get()), "@everyone", 0x400)],
         emojis: Vec::new(),
     });
     state.activate_guild(ActiveGuildScope::Guild(guild));
@@ -242,29 +453,10 @@ pub(super) fn guild_state_with_overwrites(
         member_count: Some(1),
         owner_id: Some(owner),
         channels: vec![ChannelInfo {
-            guild_id: Some(guild),
-            channel_id: channel,
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
             permission_overwrites: overwrites,
+            ..positioned_text_channel_info(guild, channel, "general", 0)
         }],
-        members: vec![MemberInfo {
-            user_id: me,
-            display_name: "me".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(me, "me")],
         presences: Vec::new(),
         roles: vec![RoleInfo {
             id: Id::new(guild.get()),
@@ -296,63 +488,13 @@ pub(super) fn state_with_writable_channel_and_members() -> DashboardState {
         name: "guild".to_owned(),
         member_count: Some(3),
         owner_id: Some(owner),
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild),
-            channel_id: channel,
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![positioned_text_channel_info(guild, channel, "general", 0)],
         members: vec![
-            MemberInfo {
-                user_id: me,
-                display_name: "me".to_owned(),
-                username: Some("me".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(20),
-                display_name: "Sally".to_owned(),
-                username: Some("salamander".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(21),
-                display_name: "Sammy".to_owned(),
-                username: Some("sammy42".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(22),
-                display_name: "Bob".to_owned(),
-                username: Some("bobtheb".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(23),
-                display_name: "Alias".to_owned(),
-                username: Some("Alias123".to_owned()),
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
+            member_with_username(me, "me", "me"),
+            member_with_username(Id::new(20), "Sally", "salamander"),
+            member_with_username(Id::new(21), "Sammy", "sammy42"),
+            member_with_username(Id::new(22), "Bob", "bobtheb"),
+            member_with_username(Id::new(23), "Alias", "Alias123"),
         ],
         presences: vec![
             (me, PresenceStatus::Online),
@@ -361,14 +503,7 @@ pub(super) fn state_with_writable_channel_and_members() -> DashboardState {
             (Id::new(22), PresenceStatus::Online),
             (Id::new(23), PresenceStatus::Online),
         ],
-        roles: vec![RoleInfo {
-            id: Id::new(guild.get()),
-            name: "@everyone".to_owned(),
-            color: None,
-            position: 0,
-            hoist: false,
-            permissions: 0x400 | 0x800,
-        }],
+        roles: vec![role_info(Id::new(guild.get()), "@everyone", 0x400 | 0x800)],
         emojis: Vec::new(),
     });
     state.activate_guild(ActiveGuildScope::Guild(guild));
@@ -382,17 +517,7 @@ pub(super) fn state_with_folder(folder_id: Option<u64>) -> DashboardState {
     let mut state = DashboardState::new();
 
     for (guild_id, name) in [(first_guild, "first"), (second_guild, "second")] {
-        state.push_event(AppEvent::GuildCreate {
-            guild_id,
-            name: name.to_owned(),
-            member_count: None,
-            channels: Vec::new(),
-            members: Vec::new(),
-            presences: Vec::new(),
-            roles: Vec::new(),
-            emojis: Vec::new(),
-            owner_id: None,
-        });
+        state.push_event(guild_create_event(guild_id, name, Vec::new()));
     }
     state.push_event(AppEvent::GuildFoldersUpdate {
         folders: vec![GuildFolder {
@@ -408,17 +533,11 @@ pub(super) fn state_with_folder(folder_id: Option<u64>) -> DashboardState {
 pub(super) fn state_with_many_guilds(count: u64) -> DashboardState {
     let mut state = DashboardState::new();
     for id in 1..=count {
-        state.push_event(AppEvent::GuildCreate {
-            guild_id: Id::new(id),
-            name: format!("guild {id}"),
-            member_count: None,
-            channels: Vec::new(),
-            members: Vec::new(),
-            presences: Vec::new(),
-            roles: Vec::new(),
-            emojis: Vec::new(),
-            owner_id: None,
-        });
+        state.push_event(guild_create_event(
+            Id::new(id),
+            format!("guild {id}"),
+            Vec::new(),
+        ));
     }
     state
 }
@@ -427,35 +546,12 @@ pub(super) fn state_with_many_channels(count: u64) -> DashboardState {
     let guild_id = Id::new(1);
     let mut state = DashboardState::new();
     let channels = (1..=count)
-        .map(|id| ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: Id::new(id),
-            parent_id: None,
-            position: Some(id as i32),
-            last_message_id: None,
-            name: format!("channel {id}"),
-            kind: "text".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
+        .map(|id| {
+            positioned_text_channel_info(guild_id, Id::new(id), format!("channel {id}"), id as i32)
         })
         .collect();
 
-    state.push_event(AppEvent::GuildCreate {
-        guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels,
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    state.push_event(guild_create_event(guild_id, "guild", channels));
     state.confirm_selected_guild();
     state
 }
@@ -465,14 +561,7 @@ pub(super) fn state_with_members(count: u64) -> DashboardState {
     let channel_id: Id<ChannelMarker> = Id::new(2);
     let mut state = DashboardState::new();
     let members = (1..=count)
-        .map(|id| MemberInfo {
-            user_id: Id::new(id),
-            display_name: format!("member {id}"),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        })
+        .map(|id| member_info(Id::new(id), format!("member {id}")))
         .collect();
     let presences = (1..=count)
         .map(|id| (Id::new(id), PresenceStatus::Online))
@@ -482,22 +571,7 @@ pub(super) fn state_with_members(count: u64) -> DashboardState {
         guild_id,
         name: "guild".to_owned(),
         member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![text_channel_info(guild_id, channel_id, "general")],
         members,
         presences,
         roles: Vec::new(),
@@ -514,13 +588,12 @@ pub(super) fn state_with_grouped_members() -> DashboardState {
     let role_id = Id::new(100);
     let mut state = DashboardState::new();
     let members = (1..=4)
-        .map(|id| MemberInfo {
-            user_id: Id::new(id),
-            display_name: format!("member {id}"),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: (id <= 2).then_some(role_id).into_iter().collect(),
+        .map(|id| {
+            member_with_roles(
+                Id::new(id),
+                format!("member {id}"),
+                (id <= 2).then_some(role_id).into_iter().collect(),
+            )
         })
         .collect();
 
@@ -528,22 +601,7 @@ pub(super) fn state_with_grouped_members() -> DashboardState {
         guild_id,
         name: "guild".to_owned(),
         member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![text_channel_info(guild_id, channel_id, "general")],
         members,
         presences: vec![
             (Id::new(1), PresenceStatus::Online),
@@ -578,54 +636,9 @@ pub(super) fn state_with_channel_tree() -> DashboardState {
         name: "guild".to_owned(),
         member_count: None,
         channels: vec![
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: category_id,
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "Text Channels".to_owned(),
-                kind: "category".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: general_id,
-                parent_id: Some(category_id),
-                position: Some(0),
-                last_message_id: None,
-                name: "general".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: random_id,
-                parent_id: Some(category_id),
-                position: Some(1),
-                last_message_id: None,
-                name: "random".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
+            category_channel_info(guild_id, category_id, "Text Channels", 0),
+            child_text_channel_info(guild_id, general_id, category_id, "general", 0),
+            child_text_channel_info(guild_id, random_id, category_id, "random", 1),
         ],
         members: Vec::new(),
         presences: Vec::new(),
@@ -645,20 +658,8 @@ pub(super) fn state_with_direct_messages() -> DashboardState {
         (Id::new(30), "empty", None),
     ] {
         state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-            guild_id: None,
-            channel_id,
-            parent_id: None,
-            position: None,
             last_message_id,
-            name: name.to_owned(),
-            kind: "dm".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
+            ..dm_channel_info(channel_id, name.to_owned())
         }));
     }
     state
@@ -670,10 +671,9 @@ pub(super) fn state_with_messages(count: u64) -> DashboardState {
 
 pub(super) fn state_with_reaction_message() -> DashboardState {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             reactions: vec![
                 ReactionInfo {
                     emoji: ReactionEmoji::Unicode("👍".to_owned()),
@@ -692,7 +692,7 @@ pub(super) fn state_with_reaction_message() -> DashboardState {
             ],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state
 }
 
@@ -705,22 +705,7 @@ pub(super) fn state_with_custom_emojis() -> DashboardState {
         guild_id,
         name: "guild".to_owned(),
         member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![text_channel_info(guild_id, channel_id, "general")],
         members: Vec::new(),
         presences: Vec::new(),
         roles: Vec::new(),
@@ -742,27 +727,14 @@ pub(super) fn state_with_custom_emojis() -> DashboardState {
     });
     state.confirm_selected_guild();
     state.confirm_selected_channel();
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id,
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state
 }
 
@@ -771,55 +743,21 @@ pub(super) fn state_with_single_message_content(content: &str) -> DashboardState
     let channel_id: Id<ChannelMarker> = Id::new(2);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![text_channel_info(guild_id, channel_id, "general")],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id,
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(content.to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state
 }
 
@@ -829,77 +767,34 @@ pub(super) fn state_with_thread_created_message() -> DashboardState {
     let thread_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
+            text_channel_info(guild_id, parent_id, "general"),
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: parent_id,
-                parent_id: None,
-                position: None,
-                last_message_id: None,
-                name: "general".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: thread_id,
-                parent_id: Some(parent_id),
-                position: None,
-                last_message_id: None,
-                name: "release notes".to_owned(),
-                kind: "thread".to_owned(),
                 message_count: Some(12),
                 total_message_sent: Some(14),
-                thread_archived: Some(false),
-                thread_locked: Some(false),
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..thread_channel_info(guild_id, parent_id, thread_id, "release notes")
             },
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id: parent_id,
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(18),
-        interaction: None,
         reference: Some(MessageReferenceInfo {
             guild_id: Some(guild_id),
             channel_id: Some(thread_id),
             message_id: None,
         }),
-        reply: None,
-        poll: None,
         content: Some("release notes".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state
 }
 
@@ -944,85 +839,39 @@ pub(super) fn state_with_messages_matching(
     let channel_id: Id<ChannelMarker> = Id::new(2);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![text_channel_info(guild_id, channel_id, "general")],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
     for id in message_ids {
-        state.push_event(AppEvent::MessageCreate {
+        state.push_event(message_create_event(MessageCreateFixture {
             guild_id: Some(guild_id),
             channel_id,
             message_id: Id::new(id),
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: crate::discord::MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some(format!("msg {id}")),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
             attachments: has_image(id)
                 .then(|| image_attachment(id))
                 .into_iter()
                 .collect(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
     }
     state
 }
 
 pub(super) fn push_text_message(state: &mut DashboardState, message_id: u64, content: &str) {
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(message_id),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(content.to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 }
 
 pub(super) fn image_attachment(id: u64) -> AttachmentInfo {
@@ -1142,17 +991,7 @@ pub(super) fn state_with_two_guilds() -> DashboardState {
     let first_guild = Id::new(1);
     let second_guild = Id::new(2);
     for (guild_id, name) in [(first_guild, "first"), (second_guild, "second")] {
-        state.push_event(AppEvent::GuildCreate {
-            guild_id,
-            name: name.to_owned(),
-            member_count: None,
-            channels: Vec::new(),
-            members: Vec::new(),
-            presences: Vec::new(),
-            roles: Vec::new(),
-            emojis: Vec::new(),
-            owner_id: None,
-        });
+        state.push_event(guild_create_event(guild_id, name, Vec::new()));
     }
     state.push_event(AppEvent::GuildFoldersUpdate {
         folders: vec![

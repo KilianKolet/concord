@@ -178,32 +178,11 @@ fn voice_channel_action_emits_join_then_leave_command() {
         microphone_volume: Default::default(),
         voice_output_volume: Default::default(),
     });
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(Id::new(1)),
-            channel_id: Id::new(11),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "Lobby".to_owned(),
-            kind: "GuildVoice".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    state.push_event(guild_create_event(
+        Id::new(1),
+        "guild",
+        vec![voice_channel_info(Id::new(1), Id::new(11), "Lobby")],
+    ));
     state.activate_guild(super::ActiveGuildScope::Guild(Id::new(1)));
     state.focus_pane(FocusPane::Channels);
     state.open_selected_channel_actions();
@@ -307,44 +286,17 @@ fn other_client_voice_state_shows_header_only() {
         user: "me".to_owned(),
         user_id: Some(Id::new(10)),
     });
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(Id::new(1)),
-            channel_id: Id::new(11),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "Lobby".to_owned(),
-            kind: "GuildVoice".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    state.push_event(guild_create_event(
+        Id::new(1),
+        "guild",
+        vec![voice_channel_info(Id::new(1), Id::new(11), "Lobby")],
+    ));
     state.push_event(AppEvent::VoiceStateUpdate {
         state: VoiceStateInfo {
-            guild_id: Id::new(1),
-            channel_id: Some(Id::new(11)),
-            user_id: Id::new(10),
             session_id: Some("other-client-voice-session".to_owned()),
-            member: None,
-            deaf: false,
-            mute: false,
             self_deaf: true,
             self_mute: true,
-            self_stream: false,
+            ..voice_state(Id::new(1), Some(Id::new(11)), Id::new(10))
         },
     });
 
@@ -385,39 +337,14 @@ fn voice_channel_join_action_requires_connect_permission() {
         name: "guild".to_owned(),
         member_count: Some(1),
         owner_id: Some(owner),
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: voice_id,
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "Lobby".to_owned(),
-            kind: "GuildVoice".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: vec![MemberInfo {
-            user_id: me,
-            display_name: "me".to_owned(),
-            username: Some("me".to_owned()),
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        channels: vec![voice_channel_info(guild_id, voice_id, "Lobby")],
+        members: vec![member_with_username(me, "me", "me")],
         presences: Vec::new(),
-        roles: vec![RoleInfo {
-            id: Id::new(guild_id.get()),
-            name: "@everyone".to_owned(),
-            color: None,
-            position: 0,
-            hoist: false,
-            permissions: PERM_VIEW_CHANNEL,
-        }],
+        roles: vec![role_info(
+            Id::new(guild_id.get()),
+            "@everyone",
+            PERM_VIEW_CHANNEL,
+        )],
         emojis: Vec::new(),
     });
     state.activate_guild(super::ActiveGuildScope::Guild(guild_id));

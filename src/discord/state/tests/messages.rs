@@ -7,27 +7,14 @@ fn bounds_messages_per_channel() {
     let mut state = DiscordState::new(1);
 
     for id in [1, 2] {
-        state.apply_event(&AppEvent::MessageCreate {
+        state.apply_event(&message_create_event(MessageCreateFixture {
             guild_id: None,
             channel_id,
             message_id: Id::new(id),
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: crate::discord::MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some(format!("message {id}")),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
-            attachments: Vec::new(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
     }
 
     let messages = state.messages_for_channel(channel_id);
@@ -40,31 +27,22 @@ fn stores_message_kind_from_message_create() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
         author: "mee6".to_owned(),
-        author_avatar_url: None,
         author_is_bot: true,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(20),
         interaction: Some(MessageInteractionInfo {
             user_id: Some(Id::new(30)),
             user: "casey".to_owned(),
             command_name: Some("anime search".to_owned()),
         }),
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages[0].message_kind, MessageKind::new(20));
@@ -85,48 +63,23 @@ fn duplicate_message_create_refreshes_message_kind() {
     let author_id = Id::new(99);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("cached".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(19),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: None,
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -141,48 +94,23 @@ fn duplicate_message_create_adds_missing_mentions() {
     let author_id = Id::new(99);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello <@10>".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello <@10>".to_owned()),
-        sticker_names: Vec::new(),
         mentions: vec![mention_info(10, "alice")],
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -194,18 +122,12 @@ fn stores_reply_preview_from_message_create() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(19),
-        interaction: None,
-        reference: None,
         reply: Some(ReplyInfo {
             author_id: None,
             author: "Alex".to_owned(),
@@ -213,14 +135,9 @@ fn stores_reply_preview_from_message_create() {
             sticker_names: Vec::new(),
             mentions: Vec::new(),
         }),
-        poll: None,
         content: Some("asdf".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(
@@ -246,18 +163,12 @@ fn duplicate_message_create_preserves_cached_reply_preview() {
     let author_id = Id::new(99);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(19),
-        interaction: None,
-        reference: None,
         reply: Some(ReplyInfo {
             author_id: None,
             author: "Alex".to_owned(),
@@ -265,35 +176,18 @@ fn duplicate_message_create_preserves_cached_reply_preview() {
             sticker_names: Vec::new(),
             mentions: Vec::new(),
         }),
-        poll: None,
         content: Some("asdf".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(19),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: None,
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -311,27 +205,15 @@ fn stores_poll_payload_from_message_create() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info()),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(
@@ -347,48 +229,23 @@ fn duplicate_message_create_preserves_cached_poll_payload() {
     let author_id = Id::new(99);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info()),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: None,
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -405,27 +262,15 @@ fn message_update_refreshes_cached_poll_results() {
     let author_id = Id::new(99);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info()),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     let mut updated_poll = poll_info();
     updated_poll.results_finalized = Some(true);
     updated_poll.answers[0].vote_count = Some(5);
@@ -457,27 +302,15 @@ fn current_user_poll_vote_update_refreshes_cached_poll_counts() {
     let author_id = Id::new(99);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info()),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     state.apply_event(&AppEvent::CurrentUserPollVoteUpdate {
         channel_id,
@@ -519,27 +352,15 @@ fn current_user_poll_vote_update_handles_missing_answer_counts() {
     let mut poll = poll_info();
     poll.answers[1].vote_count = None;
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     state.apply_event(&AppEvent::CurrentUserPollVoteUpdate {
         channel_id,
@@ -582,27 +403,15 @@ fn message_update_handles_mentions_tristate() {
 
     for (initial_mentions, update_mentions, expected_mentions) in cases {
         let mut state = DiscordState::default();
-        state.apply_event(&AppEvent::MessageCreate {
+        state.apply_event(&message_create_event(MessageCreateFixture {
             guild_id: None,
             channel_id,
             message_id,
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some("hello <@10>".to_owned()),
-            sticker_names: Vec::new(),
             mentions: initial_mentions,
-            attachments: Vec::new(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
         state.apply_event(&AppEvent::MessageUpdate {
             guild_id: None,
             channel_id,
@@ -684,48 +493,22 @@ fn keeps_known_content_when_gateway_echo_has_no_content() {
     let author_id = Id::new(30);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: None,
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.apply_event(&AppEvent::MessageUpdate {
         guild_id: None,
         channel_id,
@@ -749,35 +532,21 @@ fn merges_history_in_chronological_order() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(30),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("live".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 20, "history 20"),
             message_info(channel_id, 10, "history 10"),
         ],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(
@@ -799,14 +568,13 @@ fn history_merge_preserves_message_reference() {
         message_id: Some(Id::new(30)),
     };
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             reference: Some(reference.clone()),
             ..message_info(channel_id, 20, "history")
         }],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages[0].reference, Some(reference));
@@ -817,37 +585,23 @@ fn history_dedupes_and_preserves_known_content() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("known".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             pinned: false,
             reactions: Vec::new(),
             content: Some(String::new()),
             ..message_info(channel_id, 20, "")
         }],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -859,11 +613,10 @@ fn pinned_messages_loaded_stay_out_of_normal_history() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 20, "latest")],
-    });
+        vec![message_info(channel_id, 20, "latest")],
+    ));
     state.apply_event(&AppEvent::PinnedMessagesLoaded {
         channel_id,
         messages: vec![message_info(channel_id, 5, "old pin")],
@@ -892,15 +645,14 @@ fn bulk_delete_removes_messages_from_normal_and_pinned_caches() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 10, "keep"),
             message_info(channel_id, 20, "delete"),
             message_info(channel_id, 30, "delete too"),
         ],
-    });
+    ));
     state.apply_event(&AppEvent::PinnedMessagesLoaded {
         channel_id,
         messages: vec![message_info(channel_id, 20, "pinned delete")],
@@ -928,11 +680,10 @@ fn pinned_messages_loaded_mark_overlapping_normal_messages() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 20, "normal")],
-    });
+        vec![message_info(channel_id, 20, "normal")],
+    ));
     state.apply_event(&AppEvent::PinnedMessagesLoaded {
         channel_id,
         messages: vec![message_info(channel_id, 20, "normal")],
@@ -951,11 +702,10 @@ fn later_history_preserves_pin_state_from_pinned_cache() {
         channel_id,
         messages: vec![message_info(channel_id, 20, "pin")],
     });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 20, "pin")],
-    });
+        vec![message_info(channel_id, 20, "pin")],
+    ));
 
     assert!(state.messages_for_channel(channel_id)[0].pinned);
 }
@@ -965,11 +715,10 @@ fn message_pinned_update_updates_pinned_cache() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 20, "normal")],
-    });
+        vec![message_info(channel_id, 20, "normal")],
+    ));
     state.apply_event(&AppEvent::MessagePinnedUpdate {
         channel_id,
         message_id: Id::new(20),
@@ -1055,44 +804,29 @@ fn history_merge_replaces_mentions_from_authoritative_history() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello <@10>".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             mentions: vec![mention_info(10, "alice")],
             ..message_info(channel_id, 20, "hello <@10>")
         }],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages[0].mentions, vec![mention_info(10, "alice")]);
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 20, "hello")],
-    });
+        vec![message_info(channel_id, 20, "hello")],
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert!(messages[0].mentions.is_empty());
@@ -1103,35 +837,22 @@ fn history_merge_preserves_richer_gateway_mention_display_name() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello <@10>".to_owned()),
-        sticker_names: Vec::new(),
         mentions: vec![mention_info(10, "global alias")],
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             mentions: vec![mention_info(10, "username")],
             ..message_info(channel_id, 20, "hello <@10>")
         }],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages[0].mentions, vec![mention_info(10, "global alias")]);
@@ -1142,10 +863,9 @@ fn history_merge_clears_reactions_from_authoritative_history() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             reactions: vec![ReactionInfo {
                 emoji: ReactionEmoji::Unicode("👍".to_owned()),
                 count: 2,
@@ -1153,17 +873,16 @@ fn history_merge_clears_reactions_from_authoritative_history() {
             }],
             ..message_info(channel_id, 20, "hello")
         }],
-    });
+    ));
     assert_eq!(state.messages_for_channel(channel_id)[0].reactions.len(), 1);
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             reactions: Vec::new(),
             ..message_info(channel_id, 20, "hello")
         }],
-    });
+    ));
 
     assert!(
         state.messages_for_channel(channel_id)[0]
@@ -1177,38 +896,25 @@ fn stores_and_merges_message_attachments() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
         attachments: vec![attachment_info(1, "cat.png", "image/png")],
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             pinned: false,
             reactions: Vec::new(),
             content: Some(String::new()),
             attachments: Vec::new(),
             ..message_info(channel_id, 20, "")
         }],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -1221,27 +927,15 @@ fn stores_forwarded_snapshots_from_message_create() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
         forwarded_snapshots: vec![snapshot_info("forwarded text")],
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages.len(), 1);
@@ -1257,32 +951,19 @@ fn history_merge_preserves_existing_forwarded_snapshots() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(20),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
         forwarded_snapshots: vec![snapshot_info("live snapshot")],
-    });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![message_info(channel_id, 20, "")],
-    });
+        vec![message_info(channel_id, 20, "")],
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(
@@ -1301,27 +982,15 @@ fn message_update_handles_attachment_update_tristate() {
 
     for (attachments, expected_len) in cases {
         let mut state = DiscordState::default();
-        state.apply_event(&AppEvent::MessageCreate {
+        state.apply_event(&message_create_event(MessageCreateFixture {
             guild_id: None,
             channel_id,
             message_id: Id::new(20),
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: crate::discord::MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some(String::new()),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
             attachments: vec![attachment_info(1, "cat.png", "image/png")],
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
         state.apply_event(&AppEvent::MessageUpdate {
             guild_id: None,
             channel_id,
@@ -1348,15 +1017,14 @@ fn history_respects_message_limit_after_merge() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::new(2);
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 10, "old"),
             message_info(channel_id, 20, "middle"),
             message_info(channel_id, 30, "new"),
         ],
-    });
+    ));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(
@@ -1373,15 +1041,14 @@ fn older_history_preserves_existing_messages_when_message_limit_is_reached() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::new(3);
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 10, "old"),
             message_info(channel_id, 11, "middle"),
             message_info(channel_id, 12, "new"),
         ],
-    });
+    ));
     state.apply_event(&AppEvent::MessageHistoryLoaded {
         channel_id,
         before: Some(Id::new(10)),
@@ -1403,15 +1070,14 @@ fn older_history_is_bounded_by_extra_window() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::new(3);
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 10, "old"),
             message_info(channel_id, 11, "middle"),
             message_info(channel_id, 12, "new"),
         ],
-    });
+    ));
     state.apply_event(&AppEvent::MessageHistoryLoaded {
         channel_id,
         before: Some(Id::new(10)),
@@ -1440,41 +1106,27 @@ fn live_message_after_older_history_keeps_newer_window() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::new(4);
 
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 10, "old"),
             message_info(channel_id, 11, "middle"),
             message_info(channel_id, 12, "new"),
         ],
-    });
+    ));
     state.apply_event(&AppEvent::MessageHistoryLoaded {
         channel_id,
         before: Some(Id::new(10)),
         messages: vec![message_info(channel_id, 5, "older")],
     });
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(13),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("newest".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(
@@ -1490,27 +1142,14 @@ fn current_user_reaction_events_update_cached_reaction_summary() {
     let mut state = DiscordState::default();
     let channel_id = Id::new(2);
     let message_id = Id::new(1);
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     state.apply_event(&AppEvent::CurrentUserReactionAdd {
         channel_id,
@@ -1540,27 +1179,14 @@ fn gateway_reaction_events_update_cached_reaction_summary() {
     let channel_id = Id::new(2);
     let message_id = Id::new(1);
     let emoji = ReactionEmoji::Unicode("👍".to_owned());
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     state.apply_event(&AppEvent::MessageReactionAdd {
         guild_id: None,
@@ -1607,27 +1233,14 @@ fn current_user_gateway_reaction_events_reconcile_optimistic_updates() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id,
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     state.apply_event(&AppEvent::CurrentUserReactionAdd {
         channel_id,
@@ -1678,10 +1291,9 @@ fn gateway_reaction_clear_events_update_cached_reaction_summary() {
     let message_id = Id::new(1);
     let thumbs_up = ReactionEmoji::Unicode("👍".to_owned());
     let party = ReactionEmoji::Unicode("🎉".to_owned());
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             reactions: vec![
                 ReactionInfo {
                     emoji: thumbs_up.clone(),
@@ -1696,7 +1308,7 @@ fn gateway_reaction_clear_events_update_cached_reaction_summary() {
             ],
             ..message_info(channel_id, message_id.get(), "hello")
         }],
-    });
+    ));
 
     state.apply_event(&AppEvent::MessageReactionRemoveEmoji {
         guild_id: None,

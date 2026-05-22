@@ -21,88 +21,21 @@ fn channel_pane_excludes_threads() {
 fn channel_switcher_groups_channels_and_filters_by_fuzzy_name() {
     let mut state = DashboardState::new();
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: Id::new(40),
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(100)),
-        name: "alice".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(Id::new(40), "alice")
     }));
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![
-            ChannelInfo {
-                guild_id: Some(Id::new(1)),
-                channel_id: Id::new(10),
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "Text".to_owned(),
-                kind: "category".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(Id::new(1)),
-                channel_id: Id::new(11),
-                parent_id: Some(Id::new(10)),
-                position: Some(0),
-                last_message_id: None,
-                name: "general".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(Id::new(1)),
-                channel_id: Id::new(12),
-                parent_id: Some(Id::new(10)),
-                position: Some(1),
-                last_message_id: None,
-                name: "random".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
+    state.push_event(guild_create_event(
+        Id::new(1),
+        "guild",
+        vec![
+            category_channel_info(Id::new(1), Id::new(10), "Text", 0),
+            child_text_channel_info(Id::new(1), Id::new(11), Id::new(10), "general", 0),
+            child_text_channel_info(Id::new(1), Id::new(12), Id::new(10), "random", 1),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+    ));
 
     state.push_event(AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id: Id::new(40),
-            last_acked_message_id: Some(Id::new(100)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(Id::new(40), Some(Id::new(100)), 0)],
     });
 
     state.open_channel_switcher();
@@ -111,22 +44,13 @@ fn channel_switcher_groups_channels_and_filters_by_fuzzy_name() {
     assert_eq!(all_items[1].group_label, "guild");
     assert_eq!(all_items[1].parent_label.as_deref(), Some("Text"));
 
-    state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id: Id::new(13),
-        parent_id: Some(Id::new(10)),
-        position: Some(2),
-        last_message_id: None,
-        name: "general-new".to_owned(),
-        kind: "text".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }));
+    state.push_event(AppEvent::ChannelUpsert(child_text_channel_info(
+        Id::new(1),
+        Id::new(13),
+        Id::new(10),
+        "general-new",
+        2,
+    )));
 
     for ch in "gnrl".chars() {
         state.push_channel_switcher_char(ch);
@@ -153,27 +77,11 @@ fn channel_switcher_groups_channels_and_filters_by_fuzzy_name() {
 fn channel_switcher_items_carry_unread_metadata() {
     let mut state = DashboardState::new();
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: Id::new(40),
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(100)),
-        name: "new".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(Id::new(40), "new")
     }));
     state.push_event(AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id: Id::new(40),
-            last_acked_message_id: Some(Id::new(90)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(Id::new(40), Some(Id::new(90)), 0)],
     });
     state.open_channel_switcher();
 
@@ -186,58 +94,26 @@ fn channel_switcher_items_carry_unread_metadata() {
 #[test]
 fn channel_switcher_query_prefers_channel_name_before_context() {
     let mut state = DashboardState::new();
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "acme".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(Id::new(1)),
-            channel_id: Id::new(11),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "text".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(2),
-        name: "other".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(Id::new(2)),
-            channel_id: Id::new(21),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "acme-chat".to_owned(),
-            kind: "text".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+    state.push_event(guild_create_event(
+        Id::new(1),
+        "acme",
+        vec![positioned_text_channel_info(
+            Id::new(1),
+            Id::new(11),
+            "general",
+            0,
+        )],
+    ));
+    state.push_event(guild_create_event(
+        Id::new(2),
+        "other",
+        vec![positioned_text_channel_info(
+            Id::new(2),
+            Id::new(21),
+            "acme-chat",
+            0,
+        )],
+    ));
 
     state.open_channel_switcher();
     for ch in "acme".chars() {
@@ -255,50 +131,17 @@ fn channel_switcher_query_prefers_channel_name_before_context() {
 #[test]
 fn channel_switcher_lists_recent_channels_first() {
     let mut state = DashboardState::new();
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![
+    state.push_event(guild_create_event(
+        Id::new(1),
+        "guild",
+        vec![
             ChannelInfo {
-                guild_id: Some(Id::new(1)),
-                channel_id: Id::new(11),
-                parent_id: None,
-                position: Some(0),
                 last_message_id: Some(Id::new(101)),
-                name: "alerts".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..positioned_text_channel_info(Id::new(1), Id::new(11), "alerts", 0)
             },
-            ChannelInfo {
-                guild_id: Some(Id::new(1)),
-                channel_id: Id::new(12),
-                parent_id: None,
-                position: Some(1),
-                last_message_id: None,
-                name: "quiet".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
+            positioned_text_channel_info(Id::new(1), Id::new(12), "quiet", 1),
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+    ));
 
     state.activate_channel(Id::new(11));
     state.activate_channel(Id::new(12));
@@ -344,48 +187,20 @@ fn channel_switcher_lists_recent_channels_first() {
 #[test]
 fn channel_switcher_query_matches_display_prefixes() {
     let mut state = DashboardState::new();
-    state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: Id::new(40),
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "new-dm".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }));
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(Id::new(1)),
-            channel_id: Id::new(11),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "new-text".to_owned(),
-            kind: "text".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+    state.push_event(AppEvent::ChannelUpsert(dm_channel_info(
+        Id::new(40),
+        "new-dm",
+    )));
+    state.push_event(guild_create_event(
+        Id::new(1),
+        "guild",
+        vec![positioned_text_channel_info(
+            Id::new(1),
+            Id::new(11),
+            "new-text",
+            0,
+        )],
+    ));
 
     state.open_channel_switcher();
     for ch in "#new".chars() {

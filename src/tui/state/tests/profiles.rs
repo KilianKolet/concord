@@ -89,14 +89,7 @@ fn user_profile_popup_status_uses_cached_guild_member_status() {
         name: "guild".to_owned(),
         member_count: None,
         channels: Vec::new(),
-        members: vec![MemberInfo {
-            user_id,
-            display_name: "neo".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(user_id, "neo")],
         presences: vec![(user_id, PresenceStatus::DoNotDisturb)],
         roles: Vec::new(),
         emojis: Vec::new(),
@@ -116,18 +109,6 @@ fn user_profile_popup_status_uses_dm_recipient_status_without_guild() {
     let mut state = DashboardState::new();
 
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: Id::new(20),
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "neo".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
         recipients: Some(vec![ChannelRecipientInfo {
             user_id,
             display_name: "neo".to_owned(),
@@ -136,7 +117,7 @@ fn user_profile_popup_status_uses_dm_recipient_status_without_guild() {
             avatar_url: None,
             status: Some(PresenceStatus::Idle),
         }]),
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(Id::new(20), "neo")
     }));
     state.open_user_profile_popup(user_id, None);
 
@@ -169,18 +150,6 @@ fn user_profile_popup_status_prefers_cached_presence_over_unknown_recipient() {
         activities: Vec::new(),
     });
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: Id::new(20),
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "test-user".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
         recipients: Some(vec![ChannelRecipientInfo {
             user_id,
             display_name: "test-user".to_owned(),
@@ -189,7 +158,7 @@ fn user_profile_popup_status_prefers_cached_presence_over_unknown_recipient() {
             avatar_url: None,
             status: Some(PresenceStatus::Unknown),
         }]),
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(Id::new(20), "test-user")
     }));
     state.open_user_profile_popup(user_id, None);
 

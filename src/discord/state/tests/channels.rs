@@ -8,53 +8,23 @@ fn applies_guild_channels_and_messages() {
     let author_id = Id::new(4);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
         channels: vec![ChannelInfo {
             guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
             name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
+            ..channel_info(channel_id, "GuildText", Vec::new())
         }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..GuildCreateFixture::new(guild_id)
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id,
         message_id,
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(state.guilds().len(), 1);
     assert_eq!(state.channels_for_guild(Some(guild_id)).len(), 1);
@@ -68,20 +38,13 @@ fn stores_channel_parent_and_position() {
     let mut state = DiscordState::default();
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(guild_id),
-        channel_id,
         parent_id: Some(category_id),
         position: Some(7),
         last_message_id: Some(Id::new(9)),
-        name: "general".to_owned(),
         kind: "text".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        guild_id: Some(guild_id),
+        name: "general".to_owned(),
+        ..channel_info(channel_id, "text", Vec::new())
     }));
 
     let channel = state.channel(channel_id).unwrap();
@@ -95,45 +58,24 @@ fn channel_upsert_stores_and_preserves_recipients() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "project chat".to_owned(),
-        kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "project chat",
+        "group-dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "alice".to_owned(),
             username: None,
             is_bot: false,
             avatar_url: Some("https://cdn.discordapp.com/avatar.png".to_owned()),
             status: Some(PresenceStatus::Online),
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(30)),
-        name: "renamed project chat".to_owned(),
         kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel(channel_id, "renamed project chat")
     }));
 
     let channel = state.channel(channel_id).expect("channel should be stored");
@@ -162,29 +104,19 @@ fn dm_channel_upsert_prefers_friend_nickname() {
             Some("alice"),
         )],
     });
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "Alice Global".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "Alice Global",
+        "dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "Alice Global".to_owned(),
             username: Some("alice".to_owned()),
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     let channel = state.channel(channel_id).expect("channel should be stored");
     assert_eq!(channel.name, "Bestie");
@@ -197,50 +129,28 @@ fn relationships_without_user_fields_preserve_existing_dm_names() {
     let user_id: Id<UserMarker> = Id::new(20);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "Alice Global".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "Alice Global",
+        "dm",
+        vec![ChannelRecipientInfo {
             user_id,
             display_name: "Alice Global".to_owned(),
             username: Some("alice".to_owned()),
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
-    state.apply_event(&AppEvent::MessageCreate {
+        }],
+    )));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(3),
         author_id: user_id,
         author: "Alice Global".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.apply_event(&AppEvent::RelationshipsLoaded {
         relationships: vec![relationship_info(
             user_id.get(),
@@ -265,29 +175,19 @@ fn relationship_nickname_refresh_preserves_explicit_group_dm_name() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "project chat".to_owned(),
-        kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "project chat",
+        "group-dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "Alice Global".to_owned(),
             username: Some("alice".to_owned()),
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
     state.apply_event(&AppEvent::RelationshipsLoaded {
         relationships: vec![relationship_info(
             20,
@@ -308,52 +208,35 @@ fn channel_upsert_preserves_recipient_status_when_omitted() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "project chat".to_owned(),
-        kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "project chat",
+        "group-dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "alice".to_owned(),
             username: None,
             is_bot: false,
             avatar_url: None,
             status: Some(PresenceStatus::Online),
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(30)),
-        name: "renamed project chat".to_owned(),
-        kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
-            user_id: Id::new(20),
-            display_name: "alice renamed".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            status: None,
-        }]),
-        permission_overwrites: Vec::new(),
+        ..dm_channel_with_recipients(
+            channel_id,
+            "renamed project chat",
+            "group-dm",
+            vec![ChannelRecipientInfo {
+                user_id: Id::new(20),
+                display_name: "alice renamed".to_owned(),
+                username: None,
+                is_bot: false,
+                avatar_url: None,
+                status: None,
+            }],
+        )
     }));
 
     let channel = state.channel(channel_id).expect("channel should be stored");
@@ -366,29 +249,19 @@ fn channel_upsert_defaults_missing_recipient_status_to_unknown() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "alice".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "alice",
+        "dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "alice".to_owned(),
             username: None,
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     let channel = state.channel(channel_id).expect("channel should be stored");
     assert_eq!(channel.recipients[0].status, PresenceStatus::Unknown);
@@ -405,29 +278,19 @@ fn channel_upsert_uses_cached_user_presence_when_status_is_omitted() {
         status: PresenceStatus::Idle,
         activities: Vec::new(),
     });
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "test-user".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "test-user",
+        "dm",
+        vec![ChannelRecipientInfo {
             user_id,
             display_name: "test-user".to_owned(),
             username: None,
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     let channel = state.channel(channel_id).expect("channel should be stored");
     assert_eq!(channel.recipients[0].status, PresenceStatus::Idle);
@@ -439,29 +302,19 @@ fn user_presence_update_updates_channel_recipients() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "project chat".to_owned(),
-        kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "project chat",
+        "group-dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "alice".to_owned(),
             username: None,
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     state.apply_event(&AppEvent::UserPresenceUpdate {
         user_id: Id::new(20),
@@ -586,29 +439,19 @@ fn guild_presence_update_updates_matching_channel_recipients() {
     let channel_id: Id<ChannelMarker> = Id::new(10);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel_with_recipients(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "alice".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: Some(vec![ChannelRecipientInfo {
+        "alice",
+        "dm",
+        vec![ChannelRecipientInfo {
             user_id: Id::new(20),
             display_name: "alice".to_owned(),
             username: None,
             is_bot: false,
             avatar_url: None,
             status: None,
-        }]),
-        permission_overwrites: Vec::new(),
-    }));
+        }],
+    )));
 
     state.apply_event(&AppEvent::PresenceUpdate {
         guild_id: Id::new(1),
@@ -626,63 +469,25 @@ fn live_messages_update_channel_last_message_id() {
     let mut state = DiscordState::default();
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(20)),
-        name: "neo".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel(channel_id, "neo")
     }));
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(30),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("new".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.apply_event(&AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(10),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("old".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(
         state
@@ -698,43 +503,19 @@ fn live_thread_messages_increment_cached_counts_once() {
     let mut state = DiscordState::default();
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id,
-        parent_id: Some(Id::new(2)),
-        position: None,
-        last_message_id: None,
-        name: "release notes".to_owned(),
-        kind: "thread".to_owned(),
         message_count: Some(12),
         total_message_sent: Some(14),
-        thread_archived: Some(false),
-        thread_locked: Some(false),
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..guild_thread_channel(Id::new(1), channel_id, Id::new(2), "release notes")
     }));
     for _ in 0..2 {
-        state.apply_event(&AppEvent::MessageCreate {
+        state.apply_event(&message_create_event(MessageCreateFixture {
             guild_id: Some(Id::new(1)),
             channel_id,
             message_id: Id::new(30),
             author_id: Id::new(99),
-            author: "neo".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some("new".to_owned()),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
-            attachments: Vec::new(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
     }
     state.apply_event(&AppEvent::MessageHistoryLoaded {
         channel_id,
@@ -755,29 +536,16 @@ fn history_updates_channel_last_message_id() {
     let mut state = DiscordState::default();
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(20)),
-        name: "neo".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel(channel_id, "neo")
     }));
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![
+        vec![
             message_info(channel_id, 10, "old"),
             message_info(channel_id, 40, "new"),
         ],
-    });
+    ));
 
     assert_eq!(
         state
@@ -793,52 +561,16 @@ fn channel_upsert_does_not_regress_last_message_id() {
     let mut state = DiscordState::default();
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(30)),
-        name: "neo".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel(channel_id, "neo")
     }));
-    state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel(
         channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "neo renamed".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }));
+        "neo renamed",
+    )));
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(20)),
-        name: "neo renamed again".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel(channel_id, "neo renamed again")
     }));
 
     let channel = state.channel(channel_id).unwrap();
@@ -853,20 +585,9 @@ fn channel_delete_removes_cached_thread() {
     let mut state = DiscordState::default();
 
     state.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(guild_id),
-        channel_id,
-        parent_id: Some(Id::new(2)),
-        position: None,
-        last_message_id: None,
-        name: "release notes".to_owned(),
-        kind: "thread".to_owned(),
         message_count: Some(12),
         total_message_sent: Some(14),
-        thread_archived: Some(false),
-        thread_locked: Some(false),
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..guild_thread_channel(guild_id, channel_id, Id::new(2), "release notes")
     }));
     state.apply_event(&AppEvent::ChannelDelete {
         guild_id: Some(guild_id),

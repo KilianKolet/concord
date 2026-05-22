@@ -44,54 +44,23 @@ fn message_author_uses_cached_member_display_name() {
         member_count: None,
         channels: vec![ChannelInfo {
             guild_id: Some(guild_id),
-            channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
             name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
+            ..channel_info(channel_id, "GuildText", Vec::new())
         }],
-        members: vec![MemberInfo {
-            user_id: author_id,
-            display_name: "server alias".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(author_id, "server alias")],
         presences: Vec::new(),
         roles: Vec::new(),
         emojis: Vec::new(),
         owner_id: None,
     });
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id,
         message_id: Id::new(3),
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages[0].author, "server alias");
@@ -112,27 +81,15 @@ fn dm_message_author_prefers_friend_nickname() {
             Some("alice"),
         )],
     });
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(3),
         author_id,
         author: "Alice Global".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let messages = state.messages_for_channel(channel_id);
     assert_eq!(messages[0].author, "Bestie");
@@ -153,27 +110,15 @@ fn relationship_nickname_update_refreshes_existing_dm_message_authors() {
             Some("alice"),
         )],
     });
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(3),
         author_id,
         author: "Alice Global".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.apply_event(&AppEvent::RelationshipUpsert {
         relationship: relationship_info(author_id.get(), FriendStatus::Friend, None, None, None),
     });
@@ -189,37 +134,17 @@ fn member_update_refreshes_existing_message_author() {
     let author_id = Id::new(4);
     let mut state = DiscordState::default();
 
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id,
         message_id: Id::new(3),
         author_id,
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.apply_event(&AppEvent::GuildMemberUpsert {
         guild_id,
-        member: MemberInfo {
-            user_id: author_id,
-            display_name: "server alias".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(author_id, "server alias"),
     });
 
     let messages = state.messages_for_channel(channel_id);

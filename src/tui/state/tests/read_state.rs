@@ -5,21 +5,9 @@ fn direct_message_unread_count_counts_unread_channels() {
     let mut state = state_with_direct_messages();
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: Id::new(10),
-                last_acked_message_id: Some(Id::new(100)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(20),
-                last_acked_message_id: Some(Id::new(100)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(30),
-                last_acked_message_id: None,
-                mention_count: 5,
-            },
+            read_state_info(Id::new(10), Some(Id::new(100)), 0),
+            read_state_info(Id::new(20), Some(Id::new(100)), 0),
+            read_state_info(Id::new(30), None, 5),
         ],
     });
 
@@ -31,16 +19,8 @@ fn background_channel_message_updates_unread_without_scheduling_ack() {
     let mut state = state_with_direct_messages();
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: Id::new(10),
-                last_acked_message_id: Some(Id::new(100)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(20),
-                last_acked_message_id: Some(Id::new(200)),
-                mention_count: 0,
-            },
+            read_state_info(Id::new(10), Some(Id::new(100)), 0),
+            read_state_info(Id::new(20), Some(Id::new(200)), 0),
         ],
     });
     state.push_effect(AppEvent::ActivateChannel {
@@ -62,16 +42,8 @@ fn active_channel_read_state_coalesces_when_new_messages_arrive_at_latest() {
         let mut state = state_with_direct_messages();
         state.push_event(AppEvent::ReadStateInit {
             entries: vec![
-                ReadStateInfo {
-                    channel_id: Id::new(10),
-                    last_acked_message_id: Some(Id::new(100)),
-                    mention_count: 0,
-                },
-                ReadStateInfo {
-                    channel_id: Id::new(20),
-                    last_acked_message_id: Some(Id::new(200)),
-                    mention_count: 0,
-                },
+                read_state_info(Id::new(10), Some(Id::new(100)), 0),
+                read_state_info(Id::new(20), Some(Id::new(200)), 0),
             ],
         });
         state.push_effect(AppEvent::ActivateChannel {
@@ -133,11 +105,7 @@ fn active_channel_read_state_coalesces_when_new_messages_arrive_at_latest() {
             user_id: Some(Id::new(10)),
         });
         state.push_event(AppEvent::ReadStateInit {
-            entries: vec![ReadStateInfo {
-                channel_id: Id::new(2),
-                last_acked_message_id: Some(Id::new(1)),
-                mention_count: 0,
-            }],
+            entries: vec![read_state_info(Id::new(2), Some(Id::new(1)), 0)],
         });
         state.activate_channel(Id::new(2));
         state.set_message_view_height(10);
@@ -145,27 +113,15 @@ fn active_channel_read_state_coalesces_when_new_messages_arrive_at_latest() {
         assert!(state.unread_banner().is_some());
         state.drain_pending_commands();
 
-        state.push_event(AppEvent::MessageCreate {
+        state.push_event(message_create_event(MessageCreateFixture {
             guild_id: Some(Id::new(1)),
             channel_id: Id::new(2),
             message_id: Id::new(4),
             author_id: Id::new(10),
             author: "me".to_owned(),
-            author_avatar_url: None,
-            author_is_bot: false,
-            author_role_ids: Vec::new(),
-            message_kind: MessageKind::regular(),
-            interaction: None,
-            reference: None,
-            reply: None,
-            poll: None,
             content: Some("sent while reading latest".to_owned()),
-            sticker_names: Vec::new(),
-            mentions: Vec::new(),
-            attachments: Vec::new(),
-            embeds: Vec::new(),
-            forwarded_snapshots: Vec::new(),
-        });
+            ..MessageCreateFixture::default()
+        }));
 
         assert_eq!(state.channel_unread(Id::new(2)), ChannelUnreadState::Seen);
         assert_eq!(state.unread_divider_message_index(), None);
@@ -180,28 +136,19 @@ fn channel_unread_message_count_counts_loaded_messages_after_ack() {
     let mut state = state_with_direct_messages();
     state.push_event(AppEvent::ReadStateInit {
         entries: vec![
-            ReadStateInfo {
-                channel_id: Id::new(10),
-                last_acked_message_id: Some(Id::new(100)),
-                mention_count: 0,
-            },
-            ReadStateInfo {
-                channel_id: Id::new(20),
-                last_acked_message_id: Some(Id::new(100)),
-                mention_count: 0,
-            },
+            read_state_info(Id::new(10), Some(Id::new(100)), 0),
+            read_state_info(Id::new(20), Some(Id::new(100)), 0),
         ],
     });
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(20),
-        before: None,
-        messages: (101..=105)
+    state.push_event(latest_history_loaded(
+        Id::new(20),
+        (101..=105)
             .map(|message_id| MessageInfo {
                 guild_id: None,
                 ..message_info(Id::new(20), message_id)
             })
             .collect(),
-    });
+    ));
 
     assert_eq!(state.channel_unread_message_count(Id::new(20)), 5);
     assert_eq!(state.direct_message_unread_count(), 1);

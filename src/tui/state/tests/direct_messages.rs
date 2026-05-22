@@ -37,22 +37,10 @@ fn activate_channel_effect_moves_direct_message_cursor_to_target() {
 fn direct_message_sorting_uses_channel_id_fallback() {
     let mut state = DashboardState::new();
     for (channel_id, name) in [(Id::new(10), "older-id"), (Id::new(30), "newer-id")] {
-        state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-            guild_id: None,
+        state.push_event(AppEvent::ChannelUpsert(dm_channel_info(
             channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: name.to_owned(),
-            kind: "dm".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }));
+            name.to_owned(),
+        )));
     }
     state.confirm_selected_guild();
 
@@ -69,47 +57,14 @@ fn restoring_discord_snapshot_recovers_missed_guilds_and_direct_messages() {
         user: "neo".to_owned(),
         user_id: Some(Id::new(10)),
     });
-    snapshot.apply_event(&AppEvent::GuildCreate {
+    snapshot.apply_event(&guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: guild_channel_id,
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+        "guild",
+        vec![text_channel_info(guild_id, guild_channel_id, "general")],
+    ));
     snapshot.apply_event(&AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: dm_channel_id,
-        parent_id: None,
-        position: None,
         last_message_id: Some(Id::new(200)),
-        name: "alice".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(dm_channel_id, "alice")
     }));
 
     let mut state = DashboardState::new();
@@ -138,27 +93,14 @@ fn direct_message_cursor_stays_on_same_channel_after_recency_sort() {
     assert_eq!(state.selected_channel(), 1);
     assert_eq!(channel_entry_names(&state), vec!["new", "old", "empty"]);
 
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id: Id::new(30),
         message_id: Id::new(300),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: crate::discord::MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("new empty dm".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(channel_entry_names(&state), vec!["empty", "new", "old"]);
     assert_eq!(state.selected_channel(), 2);

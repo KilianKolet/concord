@@ -12,17 +12,15 @@ fn all_message_notification_settings_show_numeric_badge() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![guild_text_channel(guild_id, channel_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+        channels: vec![ChannelInfo {
+            guild_id: Some(guild_id),
+            name: "general".to_owned(),
+            ..channel_info(channel_id, "GuildText", Vec::new())
+        }],
+        ..GuildCreateFixture::new(guild_id)
+    }));
     state.apply_event(&AppEvent::SelectedMessageChannelChanged { channel_id: None });
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![notification_settings(
@@ -65,23 +63,17 @@ fn loaded_guild_messages_use_notification_numeric_badge() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![guild_text_channel(guild_id, channel_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
-    state.apply_event(&AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id,
-            last_acked_message_id: Some(Id::new(29)),
-            mention_count: 0,
+        channels: vec![ChannelInfo {
+            guild_id: Some(guild_id),
+            name: "general".to_owned(),
+            ..channel_info(channel_id, "GuildText", Vec::new())
         }],
+        ..GuildCreateFixture::new(guild_id)
+    }));
+    state.apply_event(&AppEvent::ReadStateInit {
+        entries: vec![read_state_info(channel_id, Some(Id::new(29)), 0)],
     });
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![notification_settings(
@@ -89,10 +81,9 @@ fn loaded_guild_messages_use_notification_numeric_badge() {
             NotificationLevel::AllMessages,
         )],
     });
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
+    state.apply_event(&latest_history_loaded(
         channel_id,
-        before: None,
-        messages: vec![MessageInfo {
+        vec![MessageInfo {
             guild_id: Some(guild_id),
             channel_id,
             message_id: Id::new(30),
@@ -101,7 +92,7 @@ fn loaded_guild_messages_use_notification_numeric_badge() {
             content: Some("loaded".to_owned()),
             ..MessageInfo::default()
         }],
-    });
+    ));
 
     assert_eq!(
         state.channel_unread(channel_id),
@@ -134,17 +125,15 @@ fn muted_channel_does_not_add_numeric_notification_badge() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![guild_text_channel(guild_id, channel_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+        channels: vec![ChannelInfo {
+            guild_id: Some(guild_id),
+            name: "general".to_owned(),
+            ..channel_info(channel_id, "GuildText", Vec::new())
+        }],
+        ..GuildCreateFixture::new(guild_id)
+    }));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![settings],
     });
@@ -192,50 +181,17 @@ fn muted_parent_category_does_not_add_server_sidebar_unread() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
         channels: vec![
+            guild_category_channel(guild_id, category_id, "category", 0),
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: category_id,
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "category".to_owned(),
-                kind: "category".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id,
-                parent_id: Some(category_id),
-                position: Some(1),
                 last_message_id: Some(Id::new(30)),
-                name: "general".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..guild_child_text_channel(guild_id, channel_id, category_id, "general", 1)
             },
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+        ..GuildCreateFixture::new(guild_id)
+    }));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![settings],
     });
@@ -291,50 +247,17 @@ fn explicit_channel_unmute_override_beats_muted_parent_category() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
         channels: vec![
+            guild_category_channel(guild_id, category_id, "category", 0),
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: category_id,
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "category".to_owned(),
-                kind: "category".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id,
-                parent_id: Some(category_id),
-                position: Some(1),
                 last_message_id: Some(Id::new(30)),
-                name: "general".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..guild_child_text_channel(guild_id, channel_id, category_id, "general", 1)
             },
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+        ..GuildCreateFixture::new(guild_id)
+    }));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![settings],
     });
@@ -372,17 +295,15 @@ fn only_mentions_settings_count_direct_mentions() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![guild_text_channel(guild_id, channel_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
+        channels: vec![ChannelInfo {
+            guild_id: Some(guild_id),
+            name: "general".to_owned(),
+            ..channel_info(channel_id, "GuildText", Vec::new())
+        }],
+        ..GuildCreateFixture::new(guild_id)
+    }));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![notification_settings(
             guild_id,
@@ -416,7 +337,7 @@ fn private_all_messages_settings_show_numeric_badge() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::ChannelUpsert(private_channel(channel_id)));
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel(channel_id, "dm")));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![private_notification_settings(
             NotificationLevel::AllMessages,
@@ -459,7 +380,7 @@ fn private_channel_override_no_messages_suppresses_numeric_badge() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::ChannelUpsert(private_channel(channel_id)));
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel(channel_id, "dm")));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![settings],
     });
@@ -497,7 +418,7 @@ fn muted_private_channel_override_suppresses_numeric_badge() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::ChannelUpsert(private_channel(channel_id)));
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel(channel_id, "dm")));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![settings],
     });
@@ -533,19 +454,18 @@ fn notification_settings_init_replaces_private_settings() {
         user: "me".to_owned(),
         user_id: Some(current_user_id),
     });
-    state.apply_event(&AppEvent::GuildCreate {
+    state.apply_event(&guild_create_event(GuildCreateFixture {
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        owner_id: None,
-        channels: vec![guild_text_channel(guild_id, guild_channel_id)],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-    });
-    state.apply_event(&AppEvent::ChannelUpsert(private_channel(
+        channels: vec![ChannelInfo {
+            guild_id: Some(guild_id),
+            name: "general".to_owned(),
+            ..channel_info(guild_channel_id, "GuildText", Vec::new())
+        }],
+        ..GuildCreateFixture::new(guild_id)
+    }));
+    state.apply_event(&AppEvent::ChannelUpsert(dm_channel(
         private_channel_id,
+        "dm",
     )));
     state.apply_event(&AppEvent::UserGuildNotificationSettingsInit {
         settings: vec![private_notification_settings(NotificationLevel::NoMessages)],

@@ -38,11 +38,10 @@ use crate::discord::{
     ChannelInfo, ChannelNotificationOverrideInfo, ChannelRecipientInfo, ChannelUnreadState,
     ChannelVisibilityStats, CustomEmojiInfo, DiscordState, DownloadAttachmentSource,
     EmbedFieldInfo, EmbedInfo, ForumPostArchiveState, FriendStatus, GuildNotificationSettingsInfo,
-    MemberInfo, MessageAttachmentUpload, MessageInfo, MessageKind, MessageReferenceInfo,
-    MessageSnapshotInfo, MutualGuildInfo, NotificationLevel, PermissionOverwriteInfo,
-    PermissionOverwriteKind, PresenceStatus, ReactionEmoji, ReactionInfo, ReactionUserInfo,
-    ReactionUsersInfo, ReadStateInfo, ReplyInfo, RoleInfo, SnapshotRevision, UserProfileInfo,
-    VoiceConnectionStatus, VoiceStateInfo,
+    MessageAttachmentUpload, MessageInfo, MessageKind, MessageReferenceInfo, MessageSnapshotInfo,
+    MutualGuildInfo, NotificationLevel, PermissionOverwriteInfo, PermissionOverwriteKind,
+    PresenceStatus, ReactionEmoji, ReactionInfo, ReactionUserInfo, ReactionUsersInfo, ReplyInfo,
+    RoleInfo, SnapshotRevision, UserProfileInfo, VoiceConnectionStatus, VoiceStateInfo,
 };
 
 fn message_rendered_height(
@@ -77,51 +76,25 @@ fn profile_info(user_id: u64, guild_nick: Option<&str>) -> UserProfileInfo {
 }
 
 fn notification_message_event(channel_id: Id<ChannelMarker>, content: &str) -> AppEvent {
-    AppEvent::MessageCreate {
+    message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id,
         message_id: Id::new(50),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some(content.to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    }
+        ..MessageCreateFixture::default()
+    })
 }
 
 fn direct_message_create_event(channel_id: Id<ChannelMarker>, message_id: u64) -> AppEvent {
-    AppEvent::MessageCreate {
+    message_create_event(MessageCreateFixture {
         guild_id: None,
         channel_id,
         message_id: Id::new(message_id),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello from dm".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    }
+        ..MessageCreateFixture::default()
+    })
 }
 
 fn drain_debounced_read_ack(state: &mut DashboardState) -> Vec<AppCommand> {
@@ -146,17 +119,13 @@ fn push_reply_message_with_attachments(
     content: Option<&str>,
     attachments: Vec<AttachmentInfo>,
 ) {
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(message_id),
         author_id: Id::new(author_id),
         author: format!("user-{author_id}"),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(19),
-        interaction: None,
         reference: Some(MessageReferenceInfo {
             guild_id: Some(Id::new(1)),
             channel_id: Some(Id::new(2)),
@@ -169,14 +138,10 @@ fn push_reply_message_with_attachments(
             sticker_names: Vec::new(),
             mentions: Vec::new(),
         }),
-        poll: None,
         content: content.map(str::to_owned),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
         attachments,
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 }
 
 fn state_with_thread_created_message_after_regular_message() -> DashboardState {
@@ -185,98 +150,42 @@ fn state_with_thread_created_message_after_regular_message() -> DashboardState {
     let thread_id = Id::new(10);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![
+        "guild",
+        vec![
+            text_channel_info(guild_id, parent_id, "general"),
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: parent_id,
-                parent_id: None,
-                position: None,
-                last_message_id: None,
-                name: "general".to_owned(),
-                kind: "GuildText".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: thread_id,
-                parent_id: Some(parent_id),
-                position: None,
-                last_message_id: None,
-                name: "release notes".to_owned(),
-                kind: "thread".to_owned(),
                 message_count: Some(12),
                 total_message_sent: Some(14),
-                thread_archived: Some(false),
-                thread_locked: Some(false),
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..thread_channel_info(guild_id, parent_id, thread_id, "release notes")
             },
         ],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id: parent_id,
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("older parent message ".repeat(20)),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
-    state.push_event(AppEvent::MessageCreate {
+        ..MessageCreateFixture::default()
+    }));
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id: parent_id,
         message_id: Id::new(2),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(18),
-        interaction: None,
         reference: Some(MessageReferenceInfo {
             guild_id: Some(guild_id),
             channel_id: Some(thread_id),
             message_id: None,
         }),
-        reply: None,
-        poll: None,
         content: Some("release notes ".repeat(20)),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state
 }
 
@@ -366,32 +275,11 @@ fn state_with_many_forum_channel_posts(count: u64) -> DashboardState {
     let forum_id = Id::new(20);
     let mut state = DashboardState::new();
 
-    state.push_event(AppEvent::GuildCreate {
+    state.push_event(guild_create_event(
         guild_id,
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: forum_id,
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "announcements".to_owned(),
-            kind: "forum".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+        "guild",
+        vec![forum_channel_info(guild_id, forum_id)],
+    ));
     state.confirm_selected_guild();
     state.confirm_selected_channel();
 
@@ -460,81 +348,21 @@ fn state_with_voice_channel_participant() -> DashboardState {
         name: "guild".to_owned(),
         member_count: None,
         channels: vec![
+            category_channel_info(guild_id, category_id, "Channels", 0),
             ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: category_id,
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "Channels".to_owned(),
-                kind: "category".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: voice_id,
                 parent_id: Some(category_id),
-                position: Some(0),
-                last_message_id: None,
-                name: "Lobby".to_owned(),
-                kind: "GuildVoice".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                ..voice_channel_info(guild_id, voice_id, "Lobby")
             },
-            ChannelInfo {
-                guild_id: Some(guild_id),
-                channel_id: text_id,
-                parent_id: Some(category_id),
-                position: Some(1),
-                last_message_id: None,
-                name: "general".to_owned(),
-                kind: "text".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
+            child_text_channel_info(guild_id, text_id, category_id, "general", 1),
         ],
-        members: vec![MemberInfo {
-            user_id: alice,
-            display_name: "Alice".to_owned(),
-            username: Some("alice".to_owned()),
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_with_username(alice, "Alice", "alice")],
         presences: Vec::new(),
         roles: Vec::new(),
         emojis: Vec::new(),
         owner_id: None,
     });
     state.push_event(AppEvent::VoiceStateUpdate {
-        state: VoiceStateInfo {
-            guild_id,
-            channel_id: Some(voice_id),
-            user_id: alice,
-            session_id: None,
-            member: None,
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
-        },
+        state: voice_state(guild_id, Some(voice_id), alice),
     });
     state.confirm_selected_guild();
     state

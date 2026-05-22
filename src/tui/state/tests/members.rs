@@ -12,39 +12,10 @@ fn member_groups_use_roles_and_status_sorted_entries() {
         guild_id,
         name: "guild".to_owned(),
         member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: Id::new(2),
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![text_channel_info(guild_id, Id::new(2), "general")],
         members: vec![
-            MemberInfo {
-                user_id: bob,
-                display_name: "bob".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: vec![admin_role],
-            },
-            MemberInfo {
-                user_id: alice,
-                display_name: "alice".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: vec![admin_role],
-            },
+            member_with_roles(bob, "bob", vec![admin_role]),
+            member_with_roles(alice, "alice", vec![admin_role]),
         ],
         presences: vec![(alice, PresenceStatus::Online), (bob, PresenceStatus::Idle)],
         roles: vec![RoleInfo {
@@ -88,14 +59,11 @@ fn member_role_color_uses_highest_nonzero_role_color() {
         name: "guild".to_owned(),
         member_count: None,
         channels: Vec::new(),
-        members: vec![MemberInfo {
+        members: vec![member_with_roles(
             user_id,
-            display_name: "alice".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: vec![low_role, zero_role, high_role],
-        }],
+            "alice",
+            vec![low_role, zero_role, high_role],
+        )],
         presences: vec![(user_id, PresenceStatus::Online)],
         roles: vec![
             RoleInfo {
@@ -154,14 +122,7 @@ fn message_history_authors_missing_member_roles_are_requested_from_batch() {
 
     state.push_event(AppEvent::GuildMemberUpsert {
         guild_id,
-        member: MemberInfo {
-            user_id: author_id,
-            display_name: "neo".to_owned(),
-            username: Some("neo".to_owned()),
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_with_username(author_id, "neo", "neo"),
     });
 
     assert_eq!(
@@ -215,14 +176,11 @@ fn member_role_color_breaks_equal_position_ties_by_role_id() {
         name: "guild".to_owned(),
         member_count: None,
         channels: Vec::new(),
-        members: vec![MemberInfo {
+        members: vec![member_with_roles(
             user_id,
-            display_name: "alice".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: vec![newer_role, older_role],
-        }],
+            "alice",
+            vec![newer_role, older_role],
+        )],
         presences: vec![(user_id, PresenceStatus::Online)],
         roles: vec![
             RoleInfo {
@@ -257,18 +215,7 @@ fn member_groups_show_selected_group_dm_recipients() {
     let mut state = DashboardState::new();
     let channel_id = Id::new(20);
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "project chat".to_owned(),
         kind: "group-dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
         recipients: Some(vec![
             ChannelRecipientInfo {
                 user_id: Id::new(30),
@@ -287,7 +234,7 @@ fn member_groups_show_selected_group_dm_recipients() {
                 status: Some(PresenceStatus::Online),
             },
         ]),
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(channel_id, "project chat")
     }));
 
     state.confirm_selected_guild();
@@ -318,14 +265,7 @@ fn member_panel_title_shows_online_and_total_when_counts_available() {
         name: "guild".to_owned(),
         member_count: Some(100),
         channels: Vec::new(),
-        members: vec![MemberInfo {
-            user_id: Id::new(10),
-            display_name: "alice".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(Id::new(10), "alice")],
         presences: vec![(Id::new(10), PresenceStatus::Online)],
         roles: Vec::new(),
         emojis: Vec::new(),
@@ -347,37 +287,15 @@ fn member_panel_title_shows_online_and_total_when_counts_available() {
 #[test]
 fn member_panel_title_stays_plain_without_guild_total_or_in_direct_messages() {
     let mut guild_state = DashboardState::new();
-    guild_state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(1),
-        name: "guild".to_owned(),
-        member_count: None,
-        channels: Vec::new(),
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    guild_state.push_event(guild_create_event(Id::new(1), "guild", Vec::new()));
     guild_state.confirm_selected_guild();
     assert_eq!(guild_state.member_panel_title(), Line::from(" Members "));
 
     let mut dm_state = DashboardState::new();
-    dm_state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id: Id::new(20),
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "alice".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
-    }));
+    dm_state.push_event(AppEvent::ChannelUpsert(dm_channel_info(
+        Id::new(20),
+        "alice",
+    )));
     dm_state.confirm_selected_guild();
     assert_eq!(dm_state.member_panel_title(), Line::from(" Members "));
 }
@@ -392,55 +310,12 @@ fn member_groups_keep_offline_hoisted_members_in_role_buckets() {
         guild_id,
         name: "guild".to_owned(),
         member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: Id::new(2),
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![text_channel_info(guild_id, Id::new(2), "general")],
         members: vec![
-            MemberInfo {
-                user_id: Id::new(10),
-                display_name: "alice".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: vec![admin_role],
-            },
-            MemberInfo {
-                user_id: Id::new(11),
-                display_name: "amy".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: vec![admin_role],
-            },
-            MemberInfo {
-                user_id: Id::new(20),
-                display_name: "bob".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(21),
-                display_name: "ben".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
+            member_with_roles(Id::new(10), "alice", vec![admin_role]),
+            member_with_roles(Id::new(11), "amy", vec![admin_role]),
+            member_info(Id::new(20), "bob"),
+            member_info(Id::new(21), "ben"),
         ],
         presences: vec![
             // Admin online, admin offline, no-role online, no-role offline
@@ -509,47 +384,11 @@ fn member_groups_treat_idle_and_dnd_as_online() {
         guild_id,
         name: "guild".to_owned(),
         member_count: None,
-        channels: vec![ChannelInfo {
-            guild_id: Some(guild_id),
-            channel_id: Id::new(2),
-            parent_id: None,
-            position: None,
-            last_message_id: None,
-            name: "general".to_owned(),
-            kind: "GuildText".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![text_channel_info(guild_id, Id::new(2), "general")],
         members: vec![
-            MemberInfo {
-                user_id: Id::new(10),
-                display_name: "idle".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(11),
-                display_name: "dnd".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: Id::new(12),
-                display_name: "unknown".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
+            member_info(Id::new(10), "idle"),
+            member_info(Id::new(11), "dnd"),
+            member_info(Id::new(12), "unknown"),
         ],
         presences: vec![
             (Id::new(10), PresenceStatus::Idle),
@@ -578,18 +417,6 @@ fn member_groups_show_selected_dm_recipient() {
     let mut state = DashboardState::new();
     let channel_id = Id::new(20);
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: None,
-        channel_id,
-        parent_id: None,
-        position: None,
-        last_message_id: None,
-        name: "alice".to_owned(),
-        kind: "dm".to_owned(),
-        message_count: None,
-        total_message_sent: None,
-        thread_archived: None,
-        thread_locked: None,
-        thread_pinned: None,
         recipients: Some(vec![ChannelRecipientInfo {
             user_id: Id::new(10),
             display_name: "alice".to_owned(),
@@ -598,7 +425,7 @@ fn member_groups_show_selected_dm_recipient() {
             avatar_url: None,
             status: Some(PresenceStatus::DoNotDisturb),
         }]),
-        permission_overwrites: Vec::new(),
+        ..dm_channel_info(channel_id, "alice")
     }));
 
     state.confirm_selected_guild();

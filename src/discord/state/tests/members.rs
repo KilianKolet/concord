@@ -12,24 +12,7 @@ fn tracks_members_and_presences() {
         name: "guild".to_owned(),
         member_count: Some(100),
         channels: Vec::new(),
-        members: vec![
-            MemberInfo {
-                user_id: alice,
-                display_name: "alice".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-            MemberInfo {
-                user_id: bob,
-                display_name: "bob".to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
-        ],
+        members: vec![member_info(alice, "alice"), member_info(bob, "bob")],
         presences: vec![(alice, PresenceStatus::Online)],
         roles: Vec::new(),
         emojis: Vec::new(),
@@ -80,37 +63,11 @@ fn tracks_voice_participants_join_move_and_leave() {
         name: "guild".to_owned(),
         member_count: Some(2),
         channels: vec![
+            guild_voice_channel(guild_id, first_voice),
             ChannelInfo {
-                kind: "GuildVoice".to_owned(),
-                channel_id: first_voice,
-                guild_id: Some(guild_id),
-                parent_id: None,
-                position: Some(0),
-                last_message_id: None,
-                name: "Lobby".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
-            },
-            ChannelInfo {
-                kind: "GuildVoice".to_owned(),
-                channel_id: second_voice,
-                guild_id: Some(guild_id),
-                parent_id: None,
-                position: Some(1),
-                last_message_id: None,
                 name: "Raid".to_owned(),
-                message_count: None,
-                total_message_sent: None,
-                thread_archived: None,
-                thread_locked: None,
-                thread_pinned: None,
-                recipients: None,
-                permission_overwrites: Vec::new(),
+                position: Some(1),
+                ..guild_voice_channel(guild_id, second_voice)
             },
         ],
         members: Vec::new(),
@@ -120,26 +77,13 @@ fn tracks_voice_participants_join_move_and_leave() {
         owner_id: None,
     });
 
-    let alice_member = MemberInfo {
-        user_id: alice,
-        display_name: "Alice".to_owned(),
-        username: Some("alice".to_owned()),
-        is_bot: false,
-        avatar_url: None,
-        role_ids: Vec::new(),
-    };
+    let alice_member = member_with_username(alice, "Alice", "alice");
     state.apply_event(&AppEvent::VoiceStateUpdate {
         state: VoiceStateInfo {
-            guild_id,
-            channel_id: Some(first_voice),
-            user_id: alice,
-            session_id: None,
             member: Some(alice_member),
-            deaf: false,
-            mute: false,
-            self_deaf: false,
             self_mute: true,
             self_stream: true,
+            ..voice_state(guild_id, Some(first_voice), alice)
         },
     });
     let first_voice_participants = state.voice_participants_for_channel(guild_id, first_voice);
@@ -171,26 +115,11 @@ fn tracks_voice_participants_join_move_and_leave() {
     assert!(state.user_voice_speaking_in_guild(guild_id, alice));
     assert!(!state.user_voice_speaking_in_guild(Id::new(999), alice));
 
-    let bob_member = MemberInfo {
-        user_id: bob,
-        display_name: "Bob".to_owned(),
-        username: Some("bob".to_owned()),
-        is_bot: false,
-        avatar_url: None,
-        role_ids: Vec::new(),
-    };
+    let bob_member = member_with_username(bob, "Bob", "bob");
     state.apply_event(&AppEvent::VoiceStateUpdate {
         state: VoiceStateInfo {
-            guild_id,
-            channel_id: Some(first_voice),
-            user_id: bob,
-            session_id: None,
             member: Some(bob_member),
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
+            ..voice_state(guild_id, Some(first_voice), bob)
         },
     });
     state.apply_event(&AppEvent::VoiceSpeakingUpdate {
@@ -208,18 +137,7 @@ fn tracks_voice_participants_join_move_and_leave() {
     );
 
     state.apply_event(&AppEvent::VoiceStateUpdate {
-        state: VoiceStateInfo {
-            guild_id,
-            channel_id: Some(second_voice),
-            user_id: alice,
-            session_id: None,
-            member: None,
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
-        },
+        state: voice_state(guild_id, Some(second_voice), alice),
     });
     let first_voice_participants = state.voice_participants_for_channel(guild_id, first_voice);
     assert_eq!(first_voice_participants.len(), 1);
@@ -246,18 +164,7 @@ fn tracks_voice_participants_join_move_and_leave() {
     );
 
     state.apply_event(&AppEvent::VoiceStateUpdate {
-        state: VoiceStateInfo {
-            guild_id,
-            channel_id: Some(second_voice),
-            user_id: bob,
-            session_id: None,
-            member: None,
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
-        },
+        state: voice_state(guild_id, Some(second_voice), bob),
     });
     state.apply_event(&AppEvent::VoiceSpeakingUpdate {
         guild_id,
@@ -273,18 +180,7 @@ fn tracks_voice_participants_join_move_and_leave() {
     );
 
     state.apply_event(&AppEvent::VoiceStateUpdate {
-        state: VoiceStateInfo {
-            guild_id,
-            channel_id: None,
-            user_id: alice,
-            session_id: None,
-            member: None,
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
-        },
+        state: voice_state(guild_id, None, alice),
     });
     let second_voice_participants = state.voice_participants_for_channel(guild_id, second_voice);
     assert_eq!(second_voice_participants.len(), 1);
@@ -304,22 +200,7 @@ fn guild_create_replaces_cached_voice_state_snapshot() {
         guild_id,
         name: "guild".to_owned(),
         member_count: Some(1),
-        channels: vec![ChannelInfo {
-            kind: "GuildVoice".to_owned(),
-            channel_id: voice,
-            guild_id: Some(guild_id),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "Lobby".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![guild_voice_channel(guild_id, voice)],
         members: Vec::new(),
         presences: Vec::new(),
         roles: Vec::new(),
@@ -327,18 +208,7 @@ fn guild_create_replaces_cached_voice_state_snapshot() {
         owner_id: None,
     });
     state.apply_event(&AppEvent::VoiceStateUpdate {
-        state: VoiceStateInfo {
-            guild_id,
-            channel_id: Some(voice),
-            user_id: alice,
-            session_id: None,
-            member: None,
-            deaf: false,
-            mute: false,
-            self_deaf: false,
-            self_mute: false,
-            self_stream: false,
-        },
+        state: voice_state(guild_id, Some(voice), alice),
     });
     assert_eq!(
         state.voice_participants_for_channel(guild_id, voice)[0].user_id,
@@ -349,22 +219,7 @@ fn guild_create_replaces_cached_voice_state_snapshot() {
         guild_id,
         name: "guild".to_owned(),
         member_count: Some(1),
-        channels: vec![ChannelInfo {
-            kind: "GuildVoice".to_owned(),
-            channel_id: voice,
-            guild_id: Some(guild_id),
-            parent_id: None,
-            position: Some(0),
-            last_message_id: None,
-            name: "Lobby".to_owned(),
-            message_count: None,
-            total_message_sent: None,
-            thread_archived: None,
-            thread_locked: None,
-            thread_pinned: None,
-            recipients: None,
-            permission_overwrites: Vec::new(),
-        }],
+        channels: vec![guild_voice_channel(guild_id, voice)],
         members: Vec::new(),
         presences: Vec::new(),
         roles: Vec::new(),
@@ -419,14 +274,7 @@ fn real_member_add_and_remove_update_known_member_count() {
         name: "guild".to_owned(),
         member_count: Some(1),
         channels: Vec::new(),
-        members: vec![MemberInfo {
-            user_id: alice,
-            display_name: "alice".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(alice, "alice")],
         presences: Vec::new(),
         roles: Vec::new(),
         emojis: Vec::new(),
@@ -435,40 +283,19 @@ fn real_member_add_and_remove_update_known_member_count() {
 
     state.apply_event(&AppEvent::GuildMemberUpsert {
         guild_id,
-        member: MemberInfo {
-            user_id: bob,
-            display_name: "bob".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(bob, "bob"),
     });
     assert_eq!(state.guild(guild_id).unwrap().member_count, Some(1));
 
     state.apply_event(&AppEvent::GuildMemberAdd {
         guild_id,
-        member: MemberInfo {
-            user_id: bob,
-            display_name: "bob".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(bob, "bob"),
     });
     assert_eq!(state.guild(guild_id).unwrap().member_count, Some(1));
 
     state.apply_event(&AppEvent::GuildMemberAdd {
         guild_id,
-        member: MemberInfo {
-            user_id: Id::new(30),
-            display_name: "carol".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(Id::new(30), "carol"),
     });
     assert_eq!(state.guild(guild_id).unwrap().member_count, Some(2));
 
@@ -517,14 +344,7 @@ fn guild_create_caches_roles_and_member_role_ids() {
         name: "guild".to_owned(),
         member_count: None,
         channels: Vec::new(),
-        members: vec![MemberInfo {
-            user_id,
-            display_name: "alice".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: vec![role_id],
-        }],
+        members: vec![member_with_roles(user_id, "alice", vec![role_id])],
         presences: Vec::new(),
         roles: vec![RoleInfo {
             id: role_id,
@@ -576,11 +396,7 @@ fn message_author_role_color_uses_history_author_roles_when_member_is_missing() 
     message.guild_id = Some(guild_id);
     message.author_id = user_id;
     message.author_role_ids = vec![role_id];
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
-        channel_id,
-        before: None,
-        messages: vec![message],
-    });
+    state.apply_event(&latest_history_loaded(channel_id, vec![message]));
 
     assert_eq!(
         state.message_author_role_color(guild_id, channel_id, message_id, user_id),
@@ -615,27 +431,16 @@ fn message_author_role_color_uses_live_author_roles_when_member_is_missing() {
         emojis: Vec::new(),
         owner_id: None,
     });
-    state.apply_event(&AppEvent::MessageCreate {
+    state.apply_event(&message_create_event(MessageCreateFixture {
         guild_id: Some(guild_id),
         channel_id,
         message_id,
         author_id: user_id,
         author: "test-user".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
         author_role_ids: vec![role_id],
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("hello".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     assert_eq!(
         state.message_author_role_color(guild_id, channel_id, message_id, user_id),
@@ -673,11 +478,7 @@ fn message_author_role_color_uses_profile_roles_when_message_roles_are_missing()
     let mut message = message_info(channel_id, message_id.get(), "hello");
     message.guild_id = Some(guild_id);
     message.author_id = user_id;
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
-        channel_id,
-        before: None,
-        messages: vec![message],
-    });
+    state.apply_event(&latest_history_loaded(channel_id, vec![message]));
     let mut profile = profile_info(user_id.get(), Some("test-user"));
     profile.role_ids = vec![role_id];
     state.apply_event(&AppEvent::UserProfileLoaded {
@@ -705,14 +506,7 @@ fn message_author_role_color_does_not_use_message_roles_when_member_is_cached() 
         name: "guild".to_owned(),
         member_count: None,
         channels: Vec::new(),
-        members: vec![MemberInfo {
-            user_id,
-            display_name: "test-user".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        }],
+        members: vec![member_info(user_id, "test-user")],
         presences: Vec::new(),
         roles: vec![RoleInfo {
             id: stale_role_id,
@@ -729,11 +523,7 @@ fn message_author_role_color_does_not_use_message_roles_when_member_is_cached() 
     message.guild_id = Some(guild_id);
     message.author_id = user_id;
     message.author_role_ids = vec![stale_role_id];
-    state.apply_event(&AppEvent::MessageHistoryLoaded {
-        channel_id,
-        before: None,
-        messages: vec![message],
-    });
+    state.apply_event(&latest_history_loaded(channel_id, vec![message]));
 
     assert_eq!(
         state.message_author_role_color(guild_id, channel_id, message_id, user_id),
@@ -751,14 +541,7 @@ fn chunk_style_member_upserts_populate_member_list() {
     for (user_id, display_name) in [(alice, "alice"), (bob, "bob")] {
         state.apply_event(&AppEvent::GuildMemberUpsert {
             guild_id,
-            member: MemberInfo {
-                user_id,
-                display_name: display_name.to_owned(),
-                username: None,
-                is_bot: false,
-                avatar_url: None,
-                role_ids: Vec::new(),
-            },
+            member: member_info(user_id, display_name.to_owned()),
         });
     }
     state.apply_event(&AppEvent::PresenceUpdate {
@@ -793,14 +576,7 @@ fn member_upsert_preserves_existing_status() {
 
     state.apply_event(&AppEvent::GuildMemberUpsert {
         guild_id,
-        member: MemberInfo {
-            user_id: user,
-            display_name: "alice".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(user, "alice"),
     });
     state.apply_event(&AppEvent::PresenceUpdate {
         guild_id,
@@ -810,14 +586,7 @@ fn member_upsert_preserves_existing_status() {
     });
     state.apply_event(&AppEvent::GuildMemberUpsert {
         guild_id,
-        member: MemberInfo {
-            user_id: user,
-            display_name: "alice-renamed".to_owned(),
-            username: None,
-            is_bot: false,
-            avatar_url: None,
-            role_ids: Vec::new(),
-        },
+        member: member_info(user, "alice-renamed"),
     });
 
     let member = state

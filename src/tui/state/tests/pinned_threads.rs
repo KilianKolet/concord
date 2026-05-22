@@ -32,11 +32,7 @@ fn pinned_message_view_title_mentions_channel_and_pins() {
 fn pinned_message_view_suppresses_unread_divider_and_banner() {
     let mut state = state_with_message_ids([1, 2, 3]);
     state.push_event(AppEvent::ReadStateInit {
-        entries: vec![ReadStateInfo {
-            channel_id: Id::new(2),
-            last_acked_message_id: Some(Id::new(1)),
-            mention_count: 0,
-        }],
+        entries: vec![read_state_info(Id::new(2), Some(Id::new(1)), 0)],
     });
     state.activate_channel(Id::new(2));
     assert_eq!(state.unread_divider_message_index(), Some(1));
@@ -164,17 +160,7 @@ fn channel_change_exits_pinned_message_view() {
 #[test]
 fn guild_change_exits_pinned_message_view() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::GuildCreate {
-        guild_id: Id::new(2),
-        name: "other guild".to_owned(),
-        member_count: None,
-        channels: Vec::new(),
-        members: Vec::new(),
-        presences: Vec::new(),
-        roles: Vec::new(),
-        emojis: Vec::new(),
-        owner_id: None,
-    });
+    state.push_event(guild_create_event(Id::new(2), "other guild", Vec::new()));
     state.enter_pinned_message_view(Id::new(2));
     assert!(state.is_pinned_message_view());
 
@@ -204,20 +190,10 @@ fn pinned_messages_loaded_does_not_update_status() {
 fn missing_thread_preview_requests_exact_latest_message_until_loaded() {
     let mut state = state_with_thread_created_message();
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id: Id::new(10),
-        parent_id: Some(Id::new(2)),
-        position: None,
         last_message_id: Some(Id::new(30)),
-        name: "release notes".to_owned(),
-        kind: "thread".to_owned(),
         message_count: Some(12),
         total_message_sent: Some(14),
-        thread_archived: Some(false),
-        thread_locked: Some(false),
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..thread_channel_info(Id::new(1), Id::new(2), Id::new(10), "release notes")
     }));
 
     assert_eq!(
@@ -258,27 +234,14 @@ fn missing_thread_preview_requests_include_visible_forum_posts_with_unavailable_
         Some(300),
         false,
     )));
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(30),
         message_id: Id::new(300),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("starter preview".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let post = state
         .selected_forum_post_items()
@@ -299,20 +262,10 @@ fn missing_thread_preview_requests_include_visible_forum_posts_with_unavailable_
 fn thread_summary_suppresses_preview_when_channel_latest_is_newer_than_cache() {
     let mut state = state_with_thread_created_message();
     state.push_event(AppEvent::ChannelUpsert(ChannelInfo {
-        guild_id: Some(Id::new(1)),
-        channel_id: Id::new(10),
-        parent_id: Some(Id::new(2)),
-        position: None,
         last_message_id: Some(Id::new(40)),
-        name: "release notes".to_owned(),
-        kind: "thread".to_owned(),
         message_count: Some(12),
         total_message_sent: Some(14),
-        thread_archived: Some(false),
-        thread_locked: Some(false),
-        thread_pinned: None,
-        recipients: None,
-        permission_overwrites: Vec::new(),
+        ..thread_channel_info(Id::new(1), Id::new(2), Id::new(10), "release notes")
     }));
     state.push_event(AppEvent::ThreadPreviewLoaded {
         channel_id: Id::new(10),
@@ -369,10 +322,9 @@ fn return_from_opened_thread_restores_scrolled_parent_message_window() {
 #[test]
 fn history_loaded_thread_created_message_opens_reference_thread_after_rename() {
     let mut state = state_with_thread_created_message();
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             message_kind: MessageKind::new(18),
             reference: Some(MessageReferenceInfo {
                 guild_id: Some(Id::new(1)),
@@ -384,7 +336,7 @@ fn history_loaded_thread_created_message_opens_reference_thread_after_rename() {
             content: Some("old thread name".to_owned()),
             ..message_info(Id::new(2), 2)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.jump_bottom();
 

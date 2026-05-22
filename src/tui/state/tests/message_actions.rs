@@ -34,15 +34,14 @@ fn disabled_image_previews_hide_view_image_action() {
 #[test]
 fn image_message_action_opens_image_viewer() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some("https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_owned()),
             embeds: vec![youtube_embed()],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
     state.move_message_action_down();
@@ -66,15 +65,14 @@ fn image_message_action_opens_image_viewer() {
 #[test]
 fn image_viewer_navigation_clamps_and_downloads_current_image() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some(String::new()),
             attachments: vec![image_attachment(10), image_attachment(11)],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
     state.move_message_action_down();
@@ -120,15 +118,14 @@ fn image_viewer_download_uses_original_url_not_preview_proxy() {
         "?format=webp&width=160&height=90"
     )
     .to_owned();
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some(String::new()),
             attachments: vec![attachment],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
     state.move_message_action_down();
@@ -149,15 +146,14 @@ fn image_viewer_download_uses_original_url_not_preview_proxy() {
 #[test]
 fn image_viewer_download_completed_event_updates_viewer_message() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some(String::new()),
             attachments: vec![image_attachment(10)],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
     state.move_message_action_down();
@@ -417,27 +413,15 @@ fn own_attachment_only_message_can_be_deleted_but_not_edited() {
         user: "neo".to_owned(),
         user_id: Some(Id::new(99)),
     });
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: None,
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
         attachments: vec![image_attachment(1)],
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -498,27 +482,15 @@ fn non_image_attachment_action_downloads_with_proxy_url_fallback() {
     let mut state = state_with_message_ids([]);
     let mut attachment = video_attachment(1);
     attachment.url.clear();
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: Some("clip".to_owned()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
         attachments: vec![attachment],
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -608,14 +580,13 @@ fn reply_non_image_attachment_action_downloads_with_proxy_url_fallback() {
 #[test]
 fn message_action_opens_single_url_from_message_content() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some("read https://example.com/docs.".to_owned()),
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -638,14 +609,13 @@ fn message_action_opens_single_url_from_message_content() {
 #[test]
 fn message_action_opens_url_picker_for_multiple_urls() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some("one https://one.example two <https://two.example/path>,".to_owned()),
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -670,17 +640,16 @@ fn message_action_opens_url_picker_for_multiple_urls() {
 #[test]
 fn message_action_detects_markdown_link_urls() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some(
                 "[Tweet](<https://x.com/i/status/2055068765671305537>) • [@steelers](<https://x.com/steelers>) • [FxTwitter](https://fxtwitter.com/i/status/2055068765671305537)"
                     .to_owned(),
             ),
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -699,10 +668,9 @@ fn message_action_detects_markdown_link_urls() {
 #[test]
 fn message_action_detects_embed_urls() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some("embed below".to_owned()),
             embeds: vec![EmbedInfo {
                 color: None,
@@ -729,7 +697,7 @@ fn message_action_detects_embed_urls() {
             }],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -744,10 +712,9 @@ fn message_action_detects_embed_urls() {
 #[test]
 fn message_action_detects_urls_in_reply_quote_and_forwarded_snapshot() {
     let mut state = state_with_messages(1);
-    state.push_event(AppEvent::MessageHistoryLoaded {
-        channel_id: Id::new(2),
-        before: None,
-        messages: vec![MessageInfo {
+    state.push_event(latest_history_loaded(
+        Id::new(2),
+        vec![MessageInfo {
             content: Some("see above".to_owned()),
             reply: Some(ReplyInfo {
                 author_id: None,
@@ -767,7 +734,7 @@ fn message_action_detects_urls_in_reply_quote_and_forwarded_snapshot() {
             }],
             ..message_info(Id::new(2), 1)
         }],
-    });
+    ));
     state.focus_pane(FocusPane::Messages);
     state.open_selected_message_actions();
 
@@ -786,27 +753,16 @@ fn message_action_detects_urls_in_reply_quote_and_forwarded_snapshot() {
 #[test]
 fn non_regular_message_actions_do_not_include_attachment_downloads() {
     let mut state = state_with_message_ids([]);
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
         message_kind: MessageKind::new(7),
-        interaction: None,
-        reference: None,
-        reply: None,
-        poll: None,
         content: None,
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
         attachments: vec![video_attachment(1)],
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.focus_pane(FocusPane::Messages);
 
     assert!(
@@ -821,27 +777,16 @@ fn non_regular_message_actions_do_not_include_attachment_downloads() {
 fn message_action_items_keep_image_action_for_poll_messages() {
     let mut state = state_with_image_messages(1, &[1]);
     state.focus_pane(FocusPane::Messages);
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info(false)),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
         attachments: vec![image_attachment(1)],
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let actions = state.selected_message_action_items();
 
@@ -863,27 +808,15 @@ fn message_action_items_keep_image_action_for_poll_messages() {
 fn poll_vote_action_can_remove_existing_vote() {
     let mut state = state_with_messages(1);
     state.focus_pane(FocusPane::Messages);
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info(false)),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
     state.open_selected_message_actions();
     for _ in 0..4 {
         state.move_message_action_down();
@@ -905,27 +838,15 @@ fn poll_vote_action_can_remove_existing_vote() {
 fn multi_select_poll_action_opens_picker_and_submits_selected_answers() {
     let mut state = state_with_messages(1);
     state.focus_pane(FocusPane::Messages);
-    state.push_event(AppEvent::MessageCreate {
+    state.push_event(message_create_event(MessageCreateFixture {
         guild_id: Some(Id::new(1)),
         channel_id: Id::new(2),
         message_id: Id::new(1),
         author_id: Id::new(99),
-        author: "neo".to_owned(),
-        author_avatar_url: None,
-        author_is_bot: false,
-        author_role_ids: Vec::new(),
-        message_kind: MessageKind::regular(),
-        interaction: None,
-        reference: None,
-        reply: None,
         poll: Some(poll_info(true)),
         content: Some(String::new()),
-        sticker_names: Vec::new(),
-        mentions: Vec::new(),
-        attachments: Vec::new(),
-        embeds: Vec::new(),
-        forwarded_snapshots: Vec::new(),
-    });
+        ..MessageCreateFixture::default()
+    }));
 
     let actions = state.selected_message_action_items();
     assert_eq!(actions[4].kind, MessageActionKind::OpenPollVotePicker);
