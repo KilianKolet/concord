@@ -522,14 +522,16 @@ fn direct_message_url_opens_url_picker_for_multiple_urls() {
     state.focus_pane(FocusPane::Messages);
     assert_eq!(state.direct_open_selected_message_url(), None);
     assert!(state.is_message_url_picker_open());
+    assert!(!state.is_message_action_menu_open());
     assert_eq!(state.selected_message_url_index(), Some(0));
 
     assert_eq!(
-        state.activate_message_action_shortcut('2'),
+        state.activate_message_url_shortcut('2'),
         Some(AppCommand::OpenUrl {
             url: "https://two.example/path".to_owned(),
         })
     );
+    assert!(!state.is_message_url_picker_open());
     assert!(!state.is_message_action_menu_open());
 }
 

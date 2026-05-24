@@ -14,9 +14,8 @@ mod polls;
 mod profile;
 mod reactions;
 mod toast;
+mod url_picker;
 
-#[cfg(test)]
-pub(super) use action_menu::message_url_picker_lines_for_width;
 #[cfg(test)]
 pub(super) use action_menu::{leader_action_lines_for_test, message_action_menu_lines};
 pub(super) use action_menu::{render_leader_popup, render_message_action_menu};
@@ -58,6 +57,9 @@ pub(super) use reactions::{render_emoji_reaction_picker, render_reaction_users_p
 pub(super) use toast::render_toast;
 #[cfg(test)]
 pub(super) use toast::{toast_area, toast_line};
+#[cfg(test)]
+pub(super) use url_picker::message_url_picker_lines_for_width;
+pub(super) use url_picker::render_message_url_picker;
 
 fn truncate_line_to_display_width(line: Line<'static>, max_width: usize) -> Line<'static> {
     if max_width == 0 {

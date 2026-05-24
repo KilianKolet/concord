@@ -94,14 +94,15 @@ pub(crate) enum MouseTarget {
     Pane(FocusPane),
     PaneRow { pane: FocusPane, row: usize },
     Composer,
-    ActionRow { menu: ActionMenuTarget, row: usize },
+    PopupRow { target: PopupListTarget, row: usize },
     ChannelSwitcherRow { row: usize },
     ModalBackdrop,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ActionMenuTarget {
-    Message,
+pub(crate) enum PopupListTarget {
+    MessageAction,
+    MessageUrl,
 }
 
 pub(super) struct UserProfilePopupText {

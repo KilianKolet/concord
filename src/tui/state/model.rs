@@ -48,12 +48,6 @@ pub struct MessageActionItem {
     pub enabled: bool,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum MessageActionMenuPhase {
-    Actions,
-    Urls,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageUrlItem {
     pub url: String,

@@ -268,15 +268,15 @@ fn mouse_target_at_maps_visible_message_action_rows() {
     );
     assert_eq!(
         mouse_target_at(area, &state, 46, first_action_y),
-        Some(MouseTarget::ActionRow {
-            menu: ActionMenuTarget::Message,
+        Some(MouseTarget::PopupRow {
+            target: PopupListTarget::MessageAction,
             row: 0,
         })
     );
     assert_eq!(
         mouse_target_at(area, &state, 46, first_action_y + last_row as u16),
-        Some(MouseTarget::ActionRow {
-            menu: ActionMenuTarget::Message,
+        Some(MouseTarget::PopupRow {
+            target: PopupListTarget::MessageAction,
             row: last_row,
         })
     );

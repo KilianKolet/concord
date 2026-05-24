@@ -129,7 +129,6 @@ impl DashboardState {
     }
 
     pub fn activate_member_action_shortcut(&mut self, shortcut: char) -> Option<AppCommand> {
-        let shortcut = shortcut.to_ascii_lowercase();
         let actions = self.selected_member_action_items();
         let index = actions.iter().enumerate().position(|(index, action)| {
             action.enabled

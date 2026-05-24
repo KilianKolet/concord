@@ -274,7 +274,7 @@ fn direct_message_shortcuts_work_from_message_pane() {
 }
 
 #[test]
-fn message_action_o_shortcut_opens_url_or_url_picker() {
+fn open_url_shortcut_opens_url_or_url_picker() {
     let mut state = state_with_messages(0);
     state.push_event(AppEvent::MessageCreate {
         guild_id: Some(Id::new(1)),
@@ -303,6 +303,7 @@ fn message_action_o_shortcut_opens_url_or_url_picker() {
 
     assert_eq!(command, None);
     assert!(state.is_message_url_picker_open());
+    assert!(!state.is_message_action_menu_open());
 
     let command = handle_key(&mut state, char_key('2'));
 
@@ -312,6 +313,7 @@ fn message_action_o_shortcut_opens_url_or_url_picker() {
             url: "https://two.example".to_owned(),
         })
     );
+    assert!(!state.is_message_url_picker_open());
     assert!(!state.is_message_action_menu_open());
 }
 

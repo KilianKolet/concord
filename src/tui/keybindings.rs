@@ -225,7 +225,7 @@ pub(in crate::tui) enum LeaderActionMenuAction {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(in crate::tui) enum MessageActionMenuAction {
+pub(in crate::tui) enum PopupListAction {
     Close,
     Select(SelectionAction),
     ActivateSelected,
@@ -988,7 +988,7 @@ fn parse_action_shortcut_key(value: &str) -> std::result::Result<char, String> {
         return Err("action shortcut cannot use modifiers".to_owned());
     }
     match key.code {
-        KeyCode::Char(value) if !value.is_whitespace() => Ok(value.to_ascii_lowercase()),
+        KeyCode::Char(value) if !value.is_whitespace() => Ok(value),
         _ => Err("action shortcut must be a character key".to_owned()),
     }
 }
@@ -1981,21 +1981,18 @@ impl KeyBindings {
         }
     }
 
-    pub(in crate::tui) fn message_action_menu_action(
-        &self,
-        key: KeyEvent,
-    ) -> Option<MessageActionMenuAction> {
+    pub(in crate::tui) fn popup_list_action(&self, key: KeyEvent) -> Option<PopupListAction> {
         if key.code == KeyCode::Esc {
-            return Some(MessageActionMenuAction::Close);
+            return Some(PopupListAction::Close);
         }
         if let Some(action) = self.selection_action(key, SelectionKeySet::Navigation) {
-            return Some(MessageActionMenuAction::Select(action));
+            return Some(PopupListAction::Select(action));
         }
 
         match key.code {
-            code if is_confirm_key(code) => Some(MessageActionMenuAction::ActivateSelected),
+            code if is_confirm_key(code) => Some(PopupListAction::ActivateSelected),
             KeyCode::Char(shortcut) if is_shortcut_key(key) => {
-                Some(MessageActionMenuAction::ActivateShortcut(shortcut))
+                Some(PopupListAction::ActivateShortcut(shortcut))
             }
             _ => None,
         }
@@ -2826,13 +2823,16 @@ mod tests {
             member_actions: [("ShowProfile".to_owned(), KeymapBinding::one("s"))]
                 .into_iter()
                 .collect(),
-            message_actions: [(
-                "OpenThread".to_owned(),
-                KeymapBinding {
-                    keys: vec!["t".to_owned(), "o".to_owned()],
-                    description: Some("open message thread".to_owned()),
-                },
-            )]
+            message_actions: [
+                (
+                    "OpenThread".to_owned(),
+                    KeymapBinding {
+                        keys: vec!["R".to_owned()],
+                        description: Some("open message thread".to_owned()),
+                    },
+                ),
+                ("ShowReactionUsers".to_owned(), KeymapBinding::one("r")),
+            ]
             .into_iter()
             .collect(),
             ..Default::default()
@@ -2874,14 +2874,25 @@ mod tests {
             vec!['s']
         );
 
-        let message_actions = [MessageActionItem {
-            kind: MessageActionKind::OpenThread,
-            label: "Open thread".to_owned(),
-            enabled: true,
-        }];
+        let message_actions = [
+            MessageActionItem {
+                kind: MessageActionKind::OpenThread,
+                label: "Open thread".to_owned(),
+                enabled: true,
+            },
+            MessageActionItem {
+                kind: MessageActionKind::ShowReactionUsers,
+                label: "Show reacted users".to_owned(),
+                enabled: true,
+            },
+        ];
         assert_eq!(
             key_bindings.message_action_shortcuts(&message_actions, 0),
-            vec!['t', 'o']
+            vec!['R']
+        );
+        assert_eq!(
+            key_bindings.message_action_shortcuts(&message_actions, 1),
+            vec!['r']
         );
         assert_eq!(
             key_bindings.message_action_label(&message_actions[0]),

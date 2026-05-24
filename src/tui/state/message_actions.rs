@@ -3,8 +3,8 @@ use crate::tui::format::detected_urls;
 
 use super::scroll::{clamp_selected_index, move_index_down, move_index_up};
 use super::{
-    DashboardState, FocusPane, MessageActionItem, MessageActionKind, MessageActionMenuPhase,
-    MessageActionMenuState, MessageUrlItem, popups,
+    DashboardState, FocusPane, MessageActionItem, MessageActionKind, MessageActionMenuState,
+    MessageUrlItem, MessageUrlPickerState, popups,
 };
 use crate::discord::AppCommand;
 
@@ -32,19 +32,11 @@ impl DashboardState {
     }
 
     pub fn close_or_back_message_action_menu(&mut self) {
-        if let Some(menu) = &mut self.popups.message_action_menu
-            && menu.phase == MessageActionMenuPhase::Urls
-        {
-            menu.phase = MessageActionMenuPhase::Actions;
-            menu.selected = 0;
-            return;
-        }
-
         self.close_message_action_menu();
     }
 
     pub fn move_message_action_down(&mut self) {
-        let actions_len = self.current_message_action_menu_len();
+        let actions_len = self.selected_message_action_items().len();
         if let Some(menu) = &mut self.popups.message_action_menu {
             move_index_down(&mut menu.selected, actions_len);
         }
@@ -57,7 +49,7 @@ impl DashboardState {
     }
 
     pub fn select_message_action_row(&mut self, row: usize) -> bool {
-        if row >= self.current_message_action_menu_len() {
+        if row >= self.selected_message_action_items().len() {
             return false;
         }
         if let Some(menu) = &mut self.popups.message_action_menu {
@@ -127,23 +119,19 @@ impl DashboardState {
     }
 
     pub fn selected_message_action_index(&self) -> Option<usize> {
-        self.popups
-            .message_action_menu
-            .as_ref()
-            .filter(|menu| menu.phase == MessageActionMenuPhase::Actions)
-            .map(|menu| {
-                clamp_selected_index(menu.selected, self.selected_message_action_items().len())
-            })
+        self.popups.message_action_menu.as_ref().map(|menu| {
+            clamp_selected_index(menu.selected, self.selected_message_action_items().len())
+        })
     }
 
     pub fn is_message_url_picker_open(&self) -> bool {
-        self.popups
-            .message_action_menu
-            .as_ref()
-            .is_some_and(|menu| menu.phase == MessageActionMenuPhase::Urls)
+        self.popups.message_url_picker.as_ref().is_some()
     }
 
     pub fn selected_message_url_items(&self) -> Vec<MessageUrlItem> {
+        if let Some(picker) = &self.popups.message_url_picker {
+            return picker.items.clone();
+        }
         self.selected_message_state()
             .map(message_url_items)
             .unwrap_or_default()
@@ -151,12 +139,32 @@ impl DashboardState {
 
     pub fn selected_message_url_index(&self) -> Option<usize> {
         self.popups
-            .message_action_menu
+            .message_url_picker
             .as_ref()
-            .filter(|menu| menu.phase == MessageActionMenuPhase::Urls)
-            .map(|menu| {
-                clamp_selected_index(menu.selected, self.selected_message_url_items().len())
-            })
+            .map(|picker| clamp_selected_index(picker.selected, picker.items.len()))
+    }
+
+    pub fn move_message_url_picker_down(&mut self) {
+        if let Some(picker) = &mut self.popups.message_url_picker {
+            move_index_down(&mut picker.selected, picker.items.len());
+        }
+    }
+
+    pub fn move_message_url_picker_up(&mut self) {
+        if let Some(picker) = &mut self.popups.message_url_picker {
+            move_index_up(&mut picker.selected);
+        }
+    }
+
+    pub fn select_message_url_row(&mut self, row: usize) -> bool {
+        let Some(picker) = &mut self.popups.message_url_picker else {
+            return false;
+        };
+        if row >= picker.items.len() {
+            return false;
+        }
+        picker.selected = row;
+        true
     }
 
     pub fn selected_message_action(&self) -> Option<MessageActionItem> {
@@ -292,10 +300,6 @@ impl DashboardState {
     }
 
     pub fn activate_message_action_shortcut(&mut self, shortcut: char) -> Option<AppCommand> {
-        if self.is_message_url_picker_open() {
-            return self.activate_message_url_shortcut(shortcut);
-        }
-
         let actions = self.selected_message_action_items();
         let index = actions.iter().enumerate().position(|(index, action)| {
             action.enabled
@@ -309,33 +313,14 @@ impl DashboardState {
         self.activate_selected_message_action()
     }
 
-    pub fn activate_selected_message_url_action(&mut self) -> Option<AppCommand> {
-        let urls = self.selected_message_url_items();
-        match urls.as_slice() {
-            [] => None,
-            [item] => {
-                let url = item.url.clone();
-                self.close_message_action_menu();
-                Some(AppCommand::OpenUrl { url })
-            }
-            _ => {
-                if let Some(menu) = &mut self.popups.message_action_menu {
-                    menu.phase = MessageActionMenuPhase::Urls;
-                    menu.selected = 0;
-                }
-                None
-            }
-        }
-    }
-
     pub fn activate_selected_message_url(&mut self) -> Option<AppCommand> {
         let index = self.selected_message_url_index()?;
         let url = self.selected_message_url_items().get(index)?.url.clone();
-        self.close_message_action_menu();
+        self.close_message_url_picker();
         Some(AppCommand::OpenUrl { url })
     }
 
-    fn activate_message_url_shortcut(&mut self, shortcut: char) -> Option<AppCommand> {
+    pub fn activate_message_url_shortcut(&mut self, shortcut: char) -> Option<AppCommand> {
         let urls = self.selected_message_url_items();
         let index = urls.iter().enumerate().position(|(index, _)| {
             self.options
@@ -343,16 +328,16 @@ impl DashboardState {
                 .indexed_shortcut(index)
                 .is_some_and(|candidate| candidate == shortcut)
         })?;
-        self.select_message_action_row(index);
+        self.select_message_url_row(index);
         self.activate_selected_message_url()
     }
 
-    fn current_message_action_menu_len(&self) -> usize {
-        if self.is_message_url_picker_open() {
-            self.selected_message_url_items().len()
-        } else {
-            self.selected_message_action_items().len()
-        }
+    pub fn close_message_url_picker(&mut self) {
+        self.popups.message_url_picker = None;
+    }
+
+    fn open_message_url_picker(&mut self, items: Vec<MessageUrlItem>) {
+        self.popups.message_url_picker = Some(MessageUrlPickerState { selected: 0, items });
     }
 
     pub fn direct_copy_selected_message_content(&mut self) {
@@ -395,8 +380,8 @@ impl DashboardState {
                 url: item.url.clone(),
             }),
             _ => {
-                self.open_selected_message_actions();
-                self.activate_selected_message_url_action()
+                self.open_message_url_picker(urls);
+                None
             }
         }
     }

@@ -8,7 +8,7 @@ use crate::discord::ReactionUsersInfo;
 use crate::tui::keybindings::{KeyChord, LeaderShortcutItem};
 
 use super::{
-    DashboardState, EmojiReactionItem, FocusPane, MessageActionMenuPhase, PollVotePickerItem,
+    DashboardState, EmojiReactionItem, FocusPane, MessageUrlItem, PollVotePickerItem,
     channel_switcher::ChannelSwitcherState,
 };
 
@@ -21,6 +21,7 @@ pub(super) enum LeaderMode {
 #[derive(Debug, Default)]
 pub(super) struct PopupUiState {
     pub(super) message_action_menu: Option<MessageActionMenuState>,
+    pub(super) message_url_picker: Option<MessageUrlPickerState>,
     pub(super) message_delete_confirmation: Option<MessageDeleteConfirmationState>,
     pub(super) message_pin_confirmation: Option<MessagePinConfirmationState>,
     pub(super) options_popup: Option<OptionsPopupState>,
@@ -38,19 +39,15 @@ pub(super) struct PopupUiState {
     pub(super) channel_switcher: Option<ChannelSwitcherState>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MessageActionMenuState {
     pub(super) selected: usize,
-    pub(super) phase: MessageActionMenuPhase,
 }
 
-impl Default for MessageActionMenuState {
-    fn default() -> Self {
-        Self {
-            selected: 0,
-            phase: MessageActionMenuPhase::Actions,
-        }
-    }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MessageUrlPickerState {
+    pub(super) selected: usize,
+    pub(super) items: Vec<MessageUrlItem>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

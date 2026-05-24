@@ -104,6 +104,7 @@ struct MemberPaneSignature {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct VisiblePopupSignature {
     message_actions: MessageActionPopupSignature,
+    message_url_picker: MessageUrlPickerPopupSignature,
     image_viewer: ImageViewerPopupSignature,
     leaders: LeaderPopupSignature,
     options: OptionsPopupSignature,
@@ -117,11 +118,15 @@ struct MessageActionPopupSignature {
     message_action_open: bool,
     selected_message_action_index: Option<usize>,
     message_action_items: DebugSignature,
+    delete_confirmation_lines: Option<(String, Option<String>)>,
+    pin_confirmation_lines: Option<(bool, String, Option<String>)>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MessageUrlPickerPopupSignature {
     message_url_picker_open: bool,
     selected_message_url_index: Option<usize>,
     message_url_items: DebugSignature,
-    delete_confirmation_lines: Option<(String, Option<String>)>,
-    pin_confirmation_lines: Option<(bool, String, Option<String>)>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -310,6 +315,10 @@ pub(super) fn visible_dashboard_signature(state: &DashboardState) -> VisibleDash
                     } else {
                         debug_signature(&())
                     },
+                    delete_confirmation_lines: state.message_delete_confirmation_lines(),
+                    pin_confirmation_lines: state.message_pin_confirmation_lines(),
+                },
+                message_url_picker: MessageUrlPickerPopupSignature {
                     message_url_picker_open: state.is_message_url_picker_open(),
                     selected_message_url_index: state.selected_message_url_index(),
                     message_url_items: if state.is_message_url_picker_open() {
@@ -317,8 +326,6 @@ pub(super) fn visible_dashboard_signature(state: &DashboardState) -> VisibleDash
                     } else {
                         debug_signature(&())
                     },
-                    delete_confirmation_lines: state.message_delete_confirmation_lines(),
-                    pin_confirmation_lines: state.message_pin_confirmation_lines(),
                 },
                 image_viewer: ImageViewerPopupSignature {
                     image_viewer_open: state.is_image_viewer_open(),

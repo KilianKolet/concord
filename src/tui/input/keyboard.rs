@@ -6,10 +6,10 @@ use crate::discord::MessageAttachmentUpload;
 use crate::tui::keybindings::{
     ChannelSwitcherAction, ComposerAction, ComposerCompletionAction, DashboardAction,
     DebugLogPopupAction, EmojiReactionPickerAction, GlobalAction, ImageViewerAction, KeyMapLookup,
-    LeaderActionMenuAction, MessageActionMenuAction, MessageConfirmationAction,
-    MessageShortcutAction, OptionsCategoryShortcut, OptionsPopupAction, PaneFilterAction,
-    PollVotePickerAction, ProfilePopupAction, ReactionUsersPopupAction, ScrollAction,
-    SelectionAction, UiAction,
+    LeaderActionMenuAction, MessageConfirmationAction, MessageShortcutAction,
+    OptionsCategoryShortcut, OptionsPopupAction, PaneFilterAction, PollVotePickerAction,
+    PopupListAction, ProfilePopupAction, ReactionUsersPopupAction, ScrollAction, SelectionAction,
+    UiAction,
 };
 
 use super::super::state::{DashboardState, FocusPane};
@@ -68,6 +68,10 @@ pub fn handle_key(state: &mut DashboardState, key: KeyEvent) -> Option<AppComman
 
     if state.is_leader_active() {
         return handle_leader_key(state, key);
+    }
+
+    if state.is_message_url_picker_open() {
+        return handle_message_url_picker_key(state, key);
     }
 
     if state.is_message_action_menu_open() {
@@ -380,7 +384,7 @@ fn handle_leader_action_key(state: &mut DashboardState, key: KeyEvent) -> Option
     match state.key_bindings().leader_action_menu_action(key) {
         LeaderActionMenuAction::BackOrClose => {
             if state.is_message_url_picker_open() {
-                state.close_or_back_message_action_menu();
+                state.close_message_url_picker();
                 return None;
             }
             if state.back_channel_leader_action() || state.back_guild_leader_action() {
@@ -415,7 +419,6 @@ fn activate_leader_action_shortcut(
     state: &mut DashboardState,
     shortcut: char,
 ) -> (bool, Option<AppCommand>) {
-    let shortcut = shortcut.to_ascii_lowercase();
     if leader_message_action_matches(state, shortcut) {
         return (true, state.activate_message_action_shortcut(shortcut));
     }
@@ -432,13 +435,6 @@ fn activate_leader_action_shortcut(
 }
 
 fn leader_message_action_matches(state: &DashboardState, shortcut: char) -> bool {
-    if state.is_message_url_picker_open() {
-        return state
-            .selected_message_url_items()
-            .iter()
-            .enumerate()
-            .any(|(index, _)| state.key_bindings().indexed_shortcut(index) == Some(shortcut));
-    }
     if !state.is_message_action_menu_open() {
         return false;
     }
@@ -450,6 +446,27 @@ fn leader_message_action_matches(state: &DashboardState, shortcut: char) -> bool
                 .message_action_shortcuts(&actions, index)
                 .contains(&shortcut)
     })
+}
+
+fn handle_message_url_picker_key(state: &mut DashboardState, key: KeyEvent) -> Option<AppCommand> {
+    match state.key_bindings().popup_list_action(key) {
+        Some(PopupListAction::Close) => state.close_message_url_picker(),
+        Some(PopupListAction::Select(SelectionAction::Next)) => {
+            state.move_message_url_picker_down()
+        }
+        Some(PopupListAction::Select(SelectionAction::Previous)) => {
+            state.move_message_url_picker_up()
+        }
+        Some(PopupListAction::ActivateSelected) => {
+            return state.activate_selected_message_url();
+        }
+        Some(PopupListAction::ActivateShortcut(shortcut)) => {
+            return state.activate_message_url_shortcut(shortcut);
+        }
+        None => {}
+    }
+
+    None
 }
 
 fn leader_channel_action_matches(state: &DashboardState, shortcut: char) -> bool {
@@ -662,21 +679,14 @@ fn hex_value(value: u8) -> Option<u8> {
 }
 
 fn handle_message_action_menu_key(state: &mut DashboardState, key: KeyEvent) -> Option<AppCommand> {
-    match state.key_bindings().message_action_menu_action(key) {
-        Some(MessageActionMenuAction::Close) => state.close_or_back_message_action_menu(),
-        Some(MessageActionMenuAction::Select(SelectionAction::Next)) => {
-            state.move_message_action_down()
-        }
-        Some(MessageActionMenuAction::Select(SelectionAction::Previous)) => {
-            state.move_message_action_up()
-        }
-        Some(MessageActionMenuAction::ActivateSelected) => {
-            if state.is_message_url_picker_open() {
-                return state.activate_selected_message_url();
-            }
+    match state.key_bindings().popup_list_action(key) {
+        Some(PopupListAction::Close) => state.close_or_back_message_action_menu(),
+        Some(PopupListAction::Select(SelectionAction::Next)) => state.move_message_action_down(),
+        Some(PopupListAction::Select(SelectionAction::Previous)) => state.move_message_action_up(),
+        Some(PopupListAction::ActivateSelected) => {
             return state.activate_selected_message_action();
         }
-        Some(MessageActionMenuAction::ActivateShortcut(shortcut)) => {
+        Some(PopupListAction::ActivateShortcut(shortcut)) => {
             return state.activate_message_action_shortcut(shortcut);
         }
         None => {}

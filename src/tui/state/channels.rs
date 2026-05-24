@@ -664,7 +664,6 @@ impl DashboardState {
     }
 
     pub fn activate_channel_action_shortcut(&mut self, shortcut: char) -> Option<AppCommand> {
-        let shortcut = shortcut.to_ascii_lowercase();
         match self.popups.channel_leader_action.as_ref()? {
             ChannelLeaderActionState::Actions { .. } => {
                 let actions = self.selected_channel_action_items();

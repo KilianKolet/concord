@@ -63,12 +63,11 @@ pub use model::{
     MemberActionItem, MessageActionItem, MessageActionKind, MuteActionDurationItem,
     PollVotePickerItem, ThreadMessagePreview, ThreadSummary,
 };
-pub use model::{
-    ChannelActionKind, GuildActionKind, MemberActionKind, MessageActionMenuPhase, MessageUrlItem,
-};
+pub use model::{ChannelActionKind, GuildActionKind, MemberActionKind, MessageUrlItem};
 pub use options::DisplayOptionItem;
 pub use popups::{
-    EmojiReactionPickerState, MessageActionMenuState, PollVotePickerState, ReactionUsersPopupState,
+    EmojiReactionPickerState, MessageActionMenuState, MessageUrlPickerState, PollVotePickerState,
+    ReactionUsersPopupState,
 };
 pub use presentation::{discord_color, folder_color, presence_color, presence_marker};
 

@@ -63,7 +63,7 @@ use crate::{
             EmojiPickerEntry, EmojiReactionItem, FocusPane, MessageActionItem, MessageActionKind,
             PollVotePickerItem,
         },
-        ui::{ActionMenuTarget, MouseTarget, mouse_target_at},
+        ui::{MouseTarget, PopupListTarget, mouse_target_at},
     },
 };
 

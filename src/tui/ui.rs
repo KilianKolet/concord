@@ -73,9 +73,9 @@ use self::panes::{render_channels, render_guilds, render_header, render_members}
 use self::popups::{
     render_channel_switcher_popup, render_debug_log_popup, render_emoji_reaction_picker,
     render_image_viewer, render_leader_popup, render_message_action_menu,
-    render_message_delete_confirmation, render_message_pin_confirmation, render_options_popup,
-    render_poll_vote_picker, render_reaction_users_popup, render_toast, render_user_profile_popup,
-    user_profile_popup_has_avatar, user_profile_popup_text_geometry,
+    render_message_delete_confirmation, render_message_pin_confirmation, render_message_url_picker,
+    render_options_popup, render_poll_vote_picker, render_reaction_users_popup, render_toast,
+    render_user_profile_popup, user_profile_popup_has_avatar, user_profile_popup_text_geometry,
     user_profile_popup_total_lines,
 };
 use self::types::{
@@ -83,10 +83,10 @@ use self::types::{
     MESSAGE_SELECTION_PREFIX_WIDTH, MessageViewportLayout, SCROLLBAR_THUMB,
     SELECTED_FORUM_POST_BORDER, SELECTED_MESSAGE_BORDER, UserProfilePopupText,
 };
-pub(crate) use self::types::{ActionMenuTarget, MouseTarget};
 pub use self::types::{
     AvatarImage, EmojiImage, ImagePreview, ImagePreviewLayout, ImagePreviewState,
 };
+pub(crate) use self::types::{MouseTarget, PopupListTarget};
 #[cfg(test)]
 use self::{
     forum::{
@@ -211,6 +211,7 @@ pub fn render(
     render_leader_popup(frame, areas.messages, state);
     render_channel_switcher_popup(frame, areas.messages, state);
     render_message_action_menu(frame, areas.messages, state);
+    render_message_url_picker(frame, areas.messages, state);
     render_message_delete_confirmation(frame, areas.messages, state);
     render_message_pin_confirmation(frame, areas.messages, state);
     render_options_popup(frame, areas.messages, state);

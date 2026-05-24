@@ -63,7 +63,7 @@ pub fn handle_mouse_event(
     let modal_mouse = matches!(
         target,
         Some(
-            ui::MouseTarget::ActionRow { .. }
+            ui::MouseTarget::PopupRow { .. }
                 | ui::MouseTarget::ChannelSwitcherRow { .. }
                 | ui::MouseTarget::ModalBackdrop
         )
@@ -181,14 +181,14 @@ fn handle_left_click(
             clicks.clear();
             MouseOutcome::handled(None)
         }
-        ui::MouseTarget::ActionRow { menu, row } => {
-            let selected = select_action_menu_row(state, menu, row);
+        ui::MouseTarget::PopupRow { target, row } => {
+            let selected = select_popup_row(state, target, row);
             if !selected {
                 clicks.clear();
                 return MouseOutcome::handled(None);
             }
-            let command = if clicks.record_left_click(target) {
-                activate_action_menu(state, menu)
+            let command = if clicks.record_left_click(ui::MouseTarget::PopupRow { target, row }) {
+                activate_popup_row(state, target)
             } else {
                 None
             };
@@ -233,7 +233,7 @@ fn move_modal_down(state: &mut DashboardState) {
     if state.is_channel_switcher_open() {
         state.move_channel_switcher_down();
     } else {
-        move_action_menu_down(state);
+        move_popup_list_down(state);
     }
 }
 
@@ -241,40 +241,39 @@ fn move_modal_up(state: &mut DashboardState) {
     if state.is_channel_switcher_open() {
         state.move_channel_switcher_up();
     } else {
-        move_action_menu_up(state);
+        move_popup_list_up(state);
     }
 }
 
-fn select_action_menu_row(
-    state: &mut DashboardState,
-    menu: ui::ActionMenuTarget,
-    row: usize,
-) -> bool {
-    match menu {
-        ui::ActionMenuTarget::Message => state.select_message_action_row(row),
+fn select_popup_row(state: &mut DashboardState, target: ui::PopupListTarget, row: usize) -> bool {
+    match target {
+        ui::PopupListTarget::MessageAction => state.select_message_action_row(row),
+        ui::PopupListTarget::MessageUrl => state.select_message_url_row(row),
     }
 }
 
-fn activate_action_menu(
+fn activate_popup_row(
     state: &mut DashboardState,
-    menu: ui::ActionMenuTarget,
+    target: ui::PopupListTarget,
 ) -> Option<AppCommand> {
-    match menu {
-        ui::ActionMenuTarget::Message if state.is_message_url_picker_open() => {
-            state.activate_selected_message_url()
-        }
-        ui::ActionMenuTarget::Message => state.activate_selected_message_action(),
+    match target {
+        ui::PopupListTarget::MessageAction => state.activate_selected_message_action(),
+        ui::PopupListTarget::MessageUrl => state.activate_selected_message_url(),
     }
 }
 
-fn move_action_menu_down(state: &mut DashboardState) {
-    if state.is_message_action_menu_open() {
+fn move_popup_list_down(state: &mut DashboardState) {
+    if state.is_message_url_picker_open() {
+        state.move_message_url_picker_down();
+    } else if state.is_message_action_menu_open() {
         state.move_message_action_down();
     }
 }
 
-fn move_action_menu_up(state: &mut DashboardState) {
-    if state.is_message_action_menu_open() {
+fn move_popup_list_up(state: &mut DashboardState) {
+    if state.is_message_url_picker_open() {
+        state.move_message_url_picker_up();
+    } else if state.is_message_action_menu_open() {
         state.move_message_action_up();
     }
 }
@@ -314,6 +313,7 @@ fn ignores_dashboard_mouse(state: &DashboardState) -> bool {
         || state.is_poll_vote_picker_open()
         || state.is_emoji_reaction_picker_open()
         || state.is_message_action_menu_open()
+        || state.is_message_url_picker_open()
         || state.is_image_viewer_open()
         || state.is_guild_leader_action_active()
         || state.is_channel_leader_action_active()

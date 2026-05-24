@@ -7,7 +7,7 @@ use super::{
     popups::{
         channel_switcher_item_index_at, channel_switcher_popup_area, user_profile_popup_area,
     },
-    types::{ActionMenuTarget, MouseTarget},
+    types::{MouseTarget, PopupListTarget},
 };
 
 pub(crate) fn focus_pane_at(
@@ -38,7 +38,7 @@ pub(crate) fn mouse_target_at(
     if let Some(target) = channel_switcher_mouse_target(areas.messages, state, column, row) {
         return Some(target);
     }
-    if let Some(target) = action_menu_mouse_target(areas.messages, state, column, row) {
+    if let Some(target) = popup_list_mouse_target(areas.messages, state, column, row) {
         return Some(target);
     }
     if state.is_pane_visible(FocusPane::Guilds)
@@ -105,21 +105,26 @@ pub(crate) fn user_profile_popup_contains(
     rect_contains(user_profile_popup_area(areas.messages), column, row)
 }
 
-fn action_menu_mouse_target(
+fn popup_list_mouse_target(
     area: Rect,
     state: &DashboardState,
     column: u16,
     row: u16,
 ) -> Option<MouseTarget> {
+    if state.is_message_url_picker_open() {
+        return popup_list_row_target(
+            message_url_picker_area(area, state),
+            state.selected_message_url_items().len(),
+            PopupListTarget::MessageUrl,
+            column,
+            row,
+        );
+    }
     if state.is_message_action_menu_open() {
-        return action_menu_row_target(
+        return popup_list_row_target(
             message_action_menu_area(area, state),
-            if state.is_message_url_picker_open() {
-                state.selected_message_url_items().len()
-            } else {
-                state.selected_message_action_items().len()
-            },
-            ActionMenuTarget::Message,
+            state.selected_message_action_items().len(),
+            PopupListTarget::MessageAction,
             column,
             row,
         );
@@ -127,10 +132,10 @@ fn action_menu_mouse_target(
     None
 }
 
-fn action_menu_row_target(
+fn popup_list_row_target(
     popup: Option<Rect>,
     item_count: usize,
-    menu: ActionMenuTarget,
+    target: PopupListTarget,
     column: u16,
     row: u16,
 ) -> Option<MouseTarget> {
@@ -144,18 +149,19 @@ fn action_menu_row_target(
     if rect_contains(inner, column, row) {
         let row = row.saturating_sub(inner.y) as usize;
         if row < item_count {
-            return Some(MouseTarget::ActionRow { menu, row });
+            return Some(MouseTarget::PopupRow { target, row });
         }
     }
     Some(MouseTarget::ModalBackdrop)
 }
 
 fn message_action_menu_area(area: Rect, state: &DashboardState) -> Option<Rect> {
-    let item_count = if state.is_message_url_picker_open() {
-        state.selected_message_url_items().len()
-    } else {
-        state.selected_message_action_items().len()
-    };
+    let item_count = state.selected_message_action_items().len();
+    (item_count > 0).then(|| centered_rect(area, 54, (item_count as u16).saturating_add(2)))
+}
+
+fn message_url_picker_area(area: Rect, state: &DashboardState) -> Option<Rect> {
+    let item_count = state.selected_message_url_items().len();
     (item_count > 0).then(|| centered_rect(area, 54, (item_count as u16).saturating_add(2)))
 }
 

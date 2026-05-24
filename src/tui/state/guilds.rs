@@ -416,7 +416,6 @@ impl DashboardState {
     }
 
     pub fn activate_guild_action_shortcut(&mut self, shortcut: char) -> Option<AppCommand> {
-        let shortcut = shortcut.to_ascii_lowercase();
         match self.popups.guild_leader_action.as_ref()? {
             GuildLeaderActionState::Actions { .. } => {
                 let actions = self.selected_guild_action_items();
